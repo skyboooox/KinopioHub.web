@@ -1,10 +1,28 @@
 .app-shell {
+  position: relative;
   min-height: 100vh;
   background:
+    linear-gradient(90deg, transparent 0, transparent 9px, var(--grid-soft) 10px, transparent 11px),
     linear-gradient(var(--grid-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-soft) 1px, transparent 1px),
     var(--paper);
-  background-size: 24px 24px;
+  background-size:
+    120px 100%,
+    24px 24px,
+    24px 24px,
+    auto;
+  overflow-x: hidden;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: var(--acid);
+  transform: translateX(100%);
+  animation: page-wipe 900ms cubic-bezier(0.72, 0, 0.28, 1) 120ms both;
 }
 
 .app-chassis {
@@ -13,6 +31,8 @@
   display: grid;
   gap: 16px;
   align-content: start;
+  max-width: 1680px;
+  margin: 0 auto;
 }
 
 .command-rail,
@@ -27,6 +47,20 @@
   min-height: 0;
   grid-template-columns: 1fr;
   align-items: start;
+}
+
+@keyframes page-wipe {
+  0% {
+    transform: translateX(-102%);
+  }
+
+  48% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(102%);
+  }
 }
 
 @media (max-width: 799px) {

@@ -1,5 +1,11 @@
 import type { ServerSelectionMode } from "kinopio-hub";
-import { msg, type LocalizedText } from "../../i18n";
+import {
+  DEFAULT_LOCALE,
+  msg,
+  translate,
+  type LocaleCode,
+  type LocalizedText,
+} from "../../i18n";
 
 export type KinopioAuthMode = "none" | "token" | "user-pass" | "creds";
 
@@ -121,12 +127,16 @@ export function createServerProfileDraft(
   };
 }
 
-export function createFreshProfileDraft(): KinopioServerProfileDraft {
+export function createFreshProfileDraft(
+  locale: LocaleCode = DEFAULT_LOCALE,
+): KinopioServerProfileDraft {
   const profile = createDefaultServerProfile();
 
   return {
     ...createServerProfileDraft(profile),
-    profileName: "New Profile",
+    profileName: translate(locale, "serverDossier.profileNames.new", {
+      count: 1,
+    }),
   };
 }
 

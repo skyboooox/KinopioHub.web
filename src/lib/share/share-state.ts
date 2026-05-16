@@ -2,7 +2,13 @@ import type {
   KinopioAuthConfig,
   KinopioServerProfile,
 } from "../kinopio/server-profile";
-import { msg, type LocalizedText } from "../../i18n";
+import {
+  DEFAULT_LOCALE,
+  msg,
+  translate,
+  type LocaleCode,
+  type LocalizedText,
+} from "../../i18n";
 
 const SHARE_QUERY_KEY = "share";
 const SHARE_SCHEMA_VERSION = 1;
@@ -189,10 +195,13 @@ export function loadShareStateFromLocation(): ShareStateLoadResult {
   }
 }
 
-export function createSharedProfile(shareState: ShareStateV1): KinopioServerProfile {
+export function createSharedProfile(
+  shareState: ShareStateV1,
+  locale: LocaleCode = DEFAULT_LOCALE,
+): KinopioServerProfile {
   return {
     id: SHARED_PROFILE_ID,
-    name: "Shared URL",
+    name: translate(locale, "serverDossier.profileNames.shared"),
     servers: [...shareState.servers],
     monitorUrl: shareState.monitorUrl,
     serverSelectionMode: shareState.serverSelectionMode,

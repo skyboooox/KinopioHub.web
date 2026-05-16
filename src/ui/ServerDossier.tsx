@@ -4,7 +4,6 @@ import { useI18n, type LocalizedText } from "../i18n";
 import {
   AUTH_MODES,
   SERVER_SELECTION_MODES,
-  summarizeServers,
   type KinopioAuthMode,
   type KinopioServerProfile,
   type KinopioServerProfileDraft,
@@ -28,7 +27,6 @@ type ServerDossierProps = {
   statusDetail: LocalizedText;
   statusDetailAt: string | null;
   errorMessage: LocalizedText | null;
-  hasPendingChanges: boolean;
   onSelectSavedProfile: (profileId: string) => void;
   onCreateProfile: () => void;
   onDeleteSelectedProfile: () => void;
@@ -60,7 +58,6 @@ export function ServerDossier({
   statusDetail,
   statusDetailAt,
   errorMessage,
-  hasPendingChanges,
   onSelectSavedProfile,
   onCreateProfile,
   onDeleteSelectedProfile,
@@ -107,19 +104,14 @@ export function ServerDossier({
     return null;
   }
 
-  const serverRows = [
+  const serverSummary = [
     [t("serverDossier.rows.profile"), appliedProfile.name],
-    [t("serverDossier.rows.active"), tText(summarizeServers(appliedProfile.servers))],
-    [t("serverDossier.rows.monitor"), tText(monitoring.summaryLabel)],
-    [
-      t("serverDossier.rows.mode"),
-      t(`common.selectionMode.${appliedProfile.serverSelectionMode}`),
-    ],
-    [
-      t("serverDossier.rows.timeout"),
-      t("common.ms", { count: formatNumber(appliedProfile.timeoutMs) }),
-    ],
     [t("serverDossier.rows.status"), t(`status.${status}`)],
+    [
+      t("serverDossier.rows.active"),
+      tText(appliedProfile.servers[0] ?? { key: "serverOverview.summary.noServer" }),
+    ],
+    [t("serverDossier.rows.monitor"), tText(monitoring.summaryLabel)],
   ];
 
   const monitoringRows = monitoring.varz
@@ -185,9 +177,10 @@ export function ServerDossier({
           type="button"
           className="server-dossier-dialog__close"
           aria-label={t("serverDossier.close")}
+          title={t("serverDossier.close")}
           onClick={onClose}
         >
-          {t("serverDossier.close")}
+          X
         </button>
 
         <section
@@ -197,25 +190,25 @@ export function ServerDossier({
           aria-modal="true"
           aria-labelledby="server-dossier-title"
         >
-          <div className="panel__header">
+          <div className="panel__header server-dossier-dialog__header">
             <p className="eyebrow-label">{t("serverDossier.eyebrow")}</p>
             <h2 id="server-dossier-title">{t("serverDossier.title")}</h2>
           </div>
 
-          <div className="dossier-table" role="table" aria-label={t("serverDossier.title")}>
-            {serverRows.map(([label, value]) => (
-              <div className="dossier-table__row" role="row" key={label}>
-                <span className="dossier-table__label" role="rowheader">
+          <div className="dossier-summary" aria-label={t("serverDossier.title")}>
+            {serverSummary.map(([label, value]) => (
+              <div className="dossier-summary__item" key={label}>
+                <span className="dossier-summary__label">
                   {label}
                 </span>
-                <span className="dossier-table__value" role="cell">
+                <span className="dossier-summary__value">
                   {value}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="panel-note panel-note--status">
+          <div className="panel-note panel-note--status panel-note--compact">
             <p className="panel-note__title">{t("serverDossier.sessionStatus")}</p>
             <p>{tText(statusDetail)}</p>
             {statusDetailAt ? (
@@ -232,25 +225,35 @@ export function ServerDossier({
             </div>
           ) : null}
 
-          <div className="panel-note panel-note--risk">
-            <p className="panel-note__title">{t("serverDossier.authStorageWarning.title")}</p>
-            <p>{t("serverDossier.authStorageWarning.body")}</p>
-          </div>
+          <div className="placeholder-block placeholder-block--dossier">
+            <div className="dossier-profile-bar">
+              <label className="stack-field">
+                <span className="eyebrow-label">{t("serverDossier.fields.savedProfile")}</span>
+                <select
+                  value={selectedProfileId}
+                  onChange={(event) => onSelectSavedProfile(event.target.value)}
+                >
+                  {savedProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <div className="placeholder-block">
-            <label className="stack-field">
-              <span className="eyebrow-label">{t("serverDossier.fields.savedProfile")}</span>
-              <select
-                value={selectedProfileId}
-                onChange={(event) => onSelectSavedProfile(event.target.value)}
-              >
-                {savedProfiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="stack-field">
+                <span className="eyebrow-label">{t("serverDossier.fields.profileName")}</span>
+                <input
+                  type="text"
+                  value={draft.profileName}
+                  onChange={(event) => onProfileNameChange(event.target.value)}
+                  spellCheck={false}
+                />
+                {validation.errors.profileName ? (
+                  <span className="field-error">{tText(validation.errors.profileName)}</span>
+                ) : null}
+              </label>
+            </div>
 
             <div className="panel-actions">
               <button
@@ -277,23 +280,10 @@ export function ServerDossier({
               </button>
             </div>
 
-            <label className="stack-field">
-              <span className="eyebrow-label">{t("serverDossier.fields.profileName")}</span>
-              <input
-                type="text"
-                value={draft.profileName}
-                onChange={(event) => onProfileNameChange(event.target.value)}
-                spellCheck={false}
-              />
-              {validation.errors.profileName ? (
-                <span className="field-error">{tText(validation.errors.profileName)}</span>
-              ) : null}
-            </label>
-
-            <label className="stack-field">
+            <label className="stack-field stack-field--full">
               <span className="eyebrow-label">{t("serverDossier.fields.serverList")}</span>
               <textarea
-                rows={4}
+                rows={3}
                 value={draft.serversText}
                 onChange={(event) => onServersTextChange(event.target.value)}
                 spellCheck={false}
@@ -303,6 +293,7 @@ export function ServerDossier({
               ) : null}
             </label>
 
+            <div className="dossier-settings-grid">
             <label className="stack-field">
               <span className="eyebrow-label">{t("serverDossier.fields.monitoringBaseUrl")}</span>
               <input
@@ -317,6 +308,22 @@ export function ServerDossier({
               ) : null}
             </label>
 
+            <label className="stack-field stack-field--inline">
+              <span className="eyebrow-label">{t("serverDossier.fields.connectTimeout")}</span>
+              <input
+                type="number"
+                min={1000}
+                step={500}
+                value={draft.timeoutMsText}
+                onChange={(event) => onTimeoutMsTextChange(event.target.value)}
+              />
+              {validation.errors.timeoutMs ? (
+                <span className="field-error">{tText(validation.errors.timeoutMs)}</span>
+              ) : null}
+            </label>
+            </div>
+
+            <div className="dossier-segment-grid">
             <label className="stack-field">
               <span className="eyebrow-label">{t("serverDossier.fields.selectionMode")}</span>
               <div
@@ -337,22 +344,27 @@ export function ServerDossier({
               </div>
             </label>
 
-            <label className="stack-field stack-field--inline">
-              <span className="eyebrow-label">{t("serverDossier.fields.connectTimeout")}</span>
-              <input
-                type="number"
-                min={1000}
-                step={500}
-                value={draft.timeoutMsText}
-                onChange={(event) => onTimeoutMsTextChange(event.target.value)}
-              />
-              {validation.errors.timeoutMs ? (
-                <span className="field-error">{tText(validation.errors.timeoutMs)}</span>
-              ) : null}
-            </label>
-
-            <label className="stack-field">
-              <span className="eyebrow-label">{t("serverDossier.fields.authMode")}</span>
+            <div className="stack-field">
+              <span className="eyebrow-label dossier-auth-heading">
+                {t("serverDossier.fields.authMode")}
+                <span className="dossier-risk-wrap">
+                  <button
+                    type="button"
+                    className="dossier-risk-icon"
+                    aria-describedby="server-dossier-auth-risk"
+                    aria-label={`${t("serverDossier.authStorageWarning.title")}: ${t("serverDossier.authStorageWarning.body")}`}
+                  >
+                    !
+                  </button>
+                  <span
+                    id="server-dossier-auth-risk"
+                    className="dossier-risk-tooltip"
+                    role="tooltip"
+                  >
+                    {t("serverDossier.authStorageWarning.body")}
+                  </span>
+                </span>
+              </span>
               <div
                 className="segment-group"
                 role="group"
@@ -369,7 +381,21 @@ export function ServerDossier({
                   </button>
                 ))}
               </div>
-            </label>
+              <label
+                className={`toggle-field toggle-field--auth${draft.rememberAuth ? " toggle-field--checked" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={draft.rememberAuth}
+                  onChange={(event) => onRememberAuthChange(event.target.checked)}
+                />
+                <span className="toggle-field__box" aria-hidden="true" />
+                <span className="toggle-field__label">
+                  {t("serverDossier.fields.rememberAuth")}
+                </span>
+              </label>
+            </div>
+            </div>
 
             {draft.authMode === "token" ? (
               <label className="stack-field">
@@ -431,49 +457,18 @@ export function ServerDossier({
               </label>
             ) : null}
 
-            <label className="toggle-field">
-              <input
-                type="checkbox"
-                checked={draft.rememberAuth}
-                disabled={draft.authMode === "none"}
-                onChange={(event) => onRememberAuthChange(event.target.checked)}
-              />
-              <span>{t("serverDossier.fields.rememberAuth")}</span>
-            </label>
-
-            <div className="status-strip" aria-label="Draft status">
-              <span
-                className={`status-strip__tag${hasPendingChanges ? " status-strip__tag--active" : ""}`}
+            <div className="dossier-note-grid">
+              <div
+                className={`panel-note panel-note--compact${monitoring.status === "error" ? " panel-note--error" : " panel-note--status"}`}
               >
-                {hasPendingChanges
-                  ? t("serverDossier.draftStatus.pendingEdits")
-                  : t("serverDossier.draftStatus.profileApplied")}
-              </span>
-              <span className="status-strip__tag">
-                {draft.rememberAuth
-                  ? t("serverDossier.draftStatus.authSaved")
-                  : t("serverDossier.draftStatus.authNotSaved")}
-              </span>
-              <span className="status-strip__tag">
-                {t("serverDossier.draftStatus.shareNoAuth")}
-              </span>
-            </div>
-
-            <div
-              className={`panel-note${monitoring.status === "error" ? " panel-note--error" : " panel-note--status"}`}
-            >
-              <p className="panel-note__title">{t("serverDossier.monitoringStatus")}</p>
-              <p>{tText(monitoring.statusLabel)}</p>
-              {monitoring.refreshedAt ? (
-                <span className="panel-note__meta">
-                  {t("serverDossier.updatedAt", { time: monitoring.refreshedAt })}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="panel-note panel-note--risk">
-              <p className="panel-note__title">{t("serverDossier.monitoringSafety.title")}</p>
-              <p>{t("serverDossier.monitoringSafety.body")}</p>
+                <p className="panel-note__title">{t("serverDossier.monitoringStatus")}</p>
+                <p>{tText(monitoring.statusLabel)}</p>
+                {monitoring.refreshedAt ? (
+                  <span className="panel-note__meta">
+                    {t("serverDossier.updatedAt", { time: monitoring.refreshedAt })}
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             {monitoring.varz ? (

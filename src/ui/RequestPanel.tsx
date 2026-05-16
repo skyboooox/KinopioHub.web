@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { useI18n, type LocalizedText } from "../i18n";
 
@@ -49,6 +50,10 @@ export function RequestPanel({
   const responseVariant =
     status === "success" ? "success" : status === "error" ? "error" : "idle";
   const shouldShowResult = status !== "idle";
+  const payloadRows = Math.max(2, requestPayloadText.split("\n").length + 1);
+  const payloadHeightStyle = {
+    "--signal-row-lines": payloadRows,
+  } as CSSProperties;
 
   function handlePayloadFormatToggle() {
     if (isPayloadFormatted) {
@@ -104,7 +109,8 @@ export function RequestPanel({
               <span className="eyebrow-label">{t("requestPanel.payloadJson")}</span>
               <div className="request-stack__payload-editor">
                 <textarea
-                  rows={8}
+                  rows={payloadRows}
+                  style={payloadHeightStyle}
                   value={requestPayloadText}
                   onChange={(event) => {
                     setIsPayloadFormatted(false);

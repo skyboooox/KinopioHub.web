@@ -1,5 +1,5 @@
 import type KinopioHub from "kinopio-hub";
-import type { MutableRefObject, ReactNode } from "react";
+import type { CSSProperties, MutableRefObject, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { msg, useI18n, type LocalizedText } from "../i18n";
 import type { LatestSignalRow } from "../core/watch/useSubjectWatch";
@@ -7,6 +7,7 @@ import type { LatestSignalRow } from "../core/watch/useSubjectWatch";
 type SignalActionState = {
   writeText: string;
   dirty: boolean;
+  editing: boolean;
   displayFormatted: boolean;
   statusText: LocalizedText | null;
   statusKind: "idle" | "success" | "error";
@@ -298,6 +299,7 @@ export function SignalDrawer({
             : {
                 writeText: row.payload,
                 dirty: false,
+                editing: currentState?.editing ?? false,
                 displayFormatted: currentState?.displayFormatted ?? false,
                 statusText: currentState?.statusText ?? null,
                 statusKind: currentState?.statusKind ?? "idle",
@@ -316,6 +318,7 @@ export function SignalDrawer({
       const existing = current[subject] ?? {
         writeText: "",
         dirty: false,
+        editing: false,
         displayFormatted: false,
         statusText: null,
         statusKind: "idle" as const,
@@ -359,6 +362,7 @@ export function SignalDrawer({
       updateActionState(row.subject, (current) => ({
         ...current,
         dirty: false,
+        editing: false,
         statusText: msg("signalDrawer.editor.published", {
           subject: row.subject,
         }),
@@ -404,6 +408,7 @@ export function SignalDrawer({
     updateActionState(row.subject, () => ({
       writeText: row.payload,
       dirty: false,
+      editing: false,
       displayFormatted: false,
       statusText: msg("signalDrawer.editor.reset"),
       statusKind: "idle",
@@ -414,8 +419,9 @@ export function SignalDrawer({
     if (actions[row.subject]?.displayFormatted) {
       updateActionState(row.subject, (current) => ({
         ...current,
-        writeText: row.payload,
-        dirty: false,
+        writeText: current.editing ? row.payload : current.writeText,
+        dirty: current.editing ? false : current.dirty,
+        editing: current.editing,
         displayFormatted: false,
         statusText: null,
         statusKind: "idle",
@@ -435,8 +441,8 @@ export function SignalDrawer({
 
     updateActionState(row.subject, (current) => ({
       ...current,
-      writeText: formatted.valueText,
-      dirty: formatted.valueText !== row.payload,
+      writeText: current.editing ? formatted.valueText : current.writeText,
+      dirty: current.editing ? formatted.valueText !== row.payload : current.dirty,
       displayFormatted: true,
       statusText: msg("signalDrawer.editor.formatted"),
       statusKind: "success",
@@ -464,7 +470,7 @@ export function SignalDrawer({
         </div>
       ) : null}
 
-      <div className="signal-list" role="list" aria-label="Signal preview rows">
+      <div className="signal-list" role="list" aria-label={t("signalDrawer.rowsLabel")}>
         {rows.length === 0 ? (
           <div className="signal-empty">
             <p className="signal-empty__title">{t("signalDrawer.emptyTitle")}</p>
@@ -482,7 +488,15 @@ export function SignalDrawer({
             : row.payload;
           const parsedDisplay = parseJsonDisplay(displayValue);
           const writeValue = actionState?.writeText ?? row.payload;
-          const writeRows = Math.max(1, writeValue.split("\n").length);
+          const displayRows = Math.max(2, displayValue.split("\n").length + 1);
+          const writeRows = Math.max(2, writeValue.split("\n").length + 1);
+          const displayHeightStyle = {
+            "--signal-row-lines": displayRows,
+          } as CSSProperties;
+          const writeHeightStyle = {
+            "--signal-row-lines": writeRows,
+          } as CSSProperties;
+          const isEditing = Boolean(actionState?.editing);
 
           return (
             <article
@@ -491,7 +505,6 @@ export function SignalDrawer({
               role="listitem"
             >
               <div className="signal-row__meta">
-                <span className="signal-row__tab">{row.prefix}</span>
                 <div className="signal-row__labels">
                   <p className="signal-row__subject">{row.subject}</p>
                   <p className="signal-row__facts">
@@ -529,7 +542,10 @@ export function SignalDrawer({
                       {"{}"}
                     </button>
                   </div>
-                  <div className="signal-row__display-value">
+                  <div
+                    className="signal-row__display-value"
+                    style={displayHeightStyle}
+                  >
                     {actionState?.displayFormatted && parsedDisplay.kind === "json" ? (
                       <JsonTree
                         value={parsedDisplay.value}
@@ -545,38 +561,67 @@ export function SignalDrawer({
                   </div>
                 </div>
 
-                <div className="signal-row__write-card">
-                  <label className="signal-row__editor-wrap">
-                    <span className="eyebrow-label">{t("signalDrawer.editor.writeValue")}</span>
-                    <textarea
-                      className="signal-row__editor"
-                      rows={writeRows}
-                      spellCheck={false}
-                      value={writeValue}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        updateActionState(row.subject, (current) => ({
-                          ...current,
-                          writeText: nextValue,
-                          dirty: nextValue !== row.payload,
-                          statusText: null,
-                          statusKind: "idle",
-                        }));
-                      }}
-                    />
-                  </label>
-                </div>
+                {isEditing ? (
+                  <div className="signal-row__write-card">
+                    <label className="signal-row__editor-wrap">
+                      <span className="eyebrow-label">
+                        {t("signalDrawer.editor.writeValue")}
+                      </span>
+                      <textarea
+                        className="signal-row__editor"
+                        rows={writeRows}
+                        style={writeHeightStyle}
+                        spellCheck={false}
+                        value={writeValue}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          updateActionState(row.subject, (current) => ({
+                            ...current,
+                            writeText: nextValue,
+                            dirty: nextValue !== row.payload,
+                            editing: true,
+                            statusText: null,
+                            statusKind: "idle",
+                          }));
+                        }}
+                      />
+                    </label>
+                  </div>
+                ) : null}
               </div>
               <div className="signal-row__actions">
                 <button
                   type="button"
-                  className="signal-row__action-button signal-row__action-button--primary"
+                  className="signal-row__action-button"
+                  aria-expanded={isEditing}
                   onClick={() => {
-                    void handlePublish(row);
+                    updateActionState(row.subject, (current) => ({
+                      ...current,
+                      editing: !current.editing,
+                      writeText:
+                        !current.editing && current.displayFormatted
+                          ? displayValue
+                          : current.writeText || row.payload,
+                      statusText: null,
+                      statusKind: "idle",
+                    }));
                   }}
                 >
-                  {t("signalDrawer.editor.actions.publish")}
+                  {isEditing
+                    ? t("signalDrawer.editor.actions.doneEditing")
+                    : t("signalDrawer.editor.actions.edit")}
                 </button>
+                {isEditing ? (
+                  <button
+                    type="button"
+                    className="signal-row__action-button signal-row__action-button--primary"
+                    onClick={() => {
+                      void handlePublish(row);
+                    }}
+                  >
+                    {t("signalDrawer.editor.actions.publish")}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="signal-row__action-button"
@@ -586,15 +631,17 @@ export function SignalDrawer({
                 >
                   {t("signalDrawer.editor.actions.log")}
                 </button>
-                <button
-                  type="button"
-                  className="signal-row__action-button"
-                  onClick={() => {
-                    handleReset(row);
-                  }}
-                >
-                  {t("signalDrawer.editor.actions.reset")}
-                </button>
+                {isEditing ? (
+                  <button
+                    type="button"
+                    className="signal-row__action-button"
+                    onClick={() => {
+                      handleReset(row);
+                    }}
+                  >
+                    {t("signalDrawer.editor.actions.reset")}
+                  </button>
+                ) : null}
               </div>
               {actionState?.statusText ? (
                 <p

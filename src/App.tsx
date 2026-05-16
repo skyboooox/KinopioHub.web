@@ -8,6 +8,7 @@ import {
   I18nProvider,
   isMessageDescriptor,
   msg,
+  translate,
   useI18n,
   type LocaleCode,
   type LocalizedText,
@@ -16,7 +17,6 @@ import {
 import {
   createDefaultServerProfile,
   createServerProfileDraft,
-  serverProfilesEqual,
   type KinopioServerProfile,
   validateServerProfileDraft,
 } from "./lib/kinopio/server-profile";
@@ -71,7 +71,7 @@ const initialLocalePreference = loadLocalePreference();
 const initialSubjectInputPreference = loadSubjectInputPreference();
 const initialShareState = loadShareStateFromLocation();
 const initialSharedProfile = initialShareState.shareState
-  ? createSharedProfile(initialShareState.shareState)
+  ? createSharedProfile(initialShareState.shareState, initialLocalePreference)
   : null;
 const initialSelectedProfile =
   initialSharedProfile ??
@@ -156,13 +156,6 @@ function AppFrame({
     () => validateServerProfileDraft(profileDraft),
     [profileDraft],
   );
-  const hasPendingChanges = useMemo(() => {
-    if (!draftValidation.profile) {
-      return true;
-    }
-
-    return !serverProfilesEqual(draftValidation.profile, appliedProfile);
-  }, [appliedProfile, draftValidation.profile]);
   const session = useKinopioSession(appliedProfile, sessionControl, locale);
   const monitoring = useNatsMonitoring(
     appliedProfile.monitorUrl,
@@ -260,9 +253,12 @@ function AppFrame({
   }
 
   function handleCreateProfile() {
+    const nextProfileIndex = savedProfiles.length + 1;
     const nextProfile = {
       ...createDefaultServerProfile(),
-      name: `Profile ${savedProfiles.length + 1}`,
+      name: translate(locale, "serverDossier.profileNames.new", {
+        count: nextProfileIndex,
+      }),
     };
 
     setSavedProfiles((current) => [...current, nextProfile]);
@@ -411,7 +407,7 @@ function AppFrame({
           </div>
         ) : null}
 
-        <main className="main-grid" aria-label="KinopioHub.web stage eight shell">
+        <main className="main-grid" aria-label={t("chrome.a11y.main")}>
           <ServerDossier
             isOpen={isServerDossierOpen}
             onClose={() => setIsServerDossierOpen(false)}
@@ -424,7 +420,6 @@ function AppFrame({
             statusDetail={session.lastEventLabel}
             statusDetailAt={session.lastEventAt}
             errorMessage={session.errorMessage}
-            hasPendingChanges={hasPendingChanges}
             onSelectSavedProfile={handleSelectSavedProfile}
             onCreateProfile={handleCreateProfile}
             onDeleteSelectedProfile={handleDeleteSelectedProfile}
@@ -526,8 +521,8 @@ function AppFrame({
         </main>
 
         <div className="bottom-control-rail">
-          <div className="command-rail__controls" aria-label="Appearance controls">
-            <div className="command-rail__switcher" role="group" aria-label="Theme mode">
+          <div className="command-rail__controls" aria-label={t("chrome.a11y.appearance")}>
+            <div className="command-rail__switcher" role="group" aria-label={t("chrome.a11y.theme")}>
               {(["light", "dark"] as const).map((value) => (
                 <button
                   key={value}
@@ -540,7 +535,7 @@ function AppFrame({
               ))}
             </div>
 
-            <div className="command-rail__switcher" role="group" aria-label="Locale mode">
+            <div className="command-rail__switcher" role="group" aria-label={t("chrome.a11y.locale")}>
               {(["zh-CN", "en"] as const).map((value) => (
                 <button
                   key={value}

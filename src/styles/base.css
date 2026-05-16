@@ -108,10 +108,24 @@ textarea {
 
 button {
   cursor: pointer;
+  transform: translateY(0);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 120ms ease;
 }
 
 button:disabled {
   cursor: not-allowed;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(2px);
 }
 
 input,
@@ -139,7 +153,7 @@ select:focus-visible,
 textarea:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--acid);
-  outline-offset: 2px;
+  outline-offset: 3px;
   box-shadow: none;
 }
 
