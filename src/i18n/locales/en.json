@@ -1,0 +1,316 @@
+{
+  "chrome": {
+    "title": "Kinopio HUB",
+    "subjectInput": "Subject Input",
+    "theme": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "locale": {
+      "zh-CN": "中",
+      "en": "EN"
+    }
+  },
+  "common": {
+    "notAvailable": "N/A",
+    "bytes": "{{count}} bytes",
+    "hits": "{{count}} hits",
+    "ms": "{{count}} ms",
+    "selectionMode": {
+      "ordered": "Ordered",
+      "random": "Random",
+      "latency": "Latency"
+    },
+    "authMode": {
+      "none": "None",
+      "token": "Token",
+      "user-pass": "User-Pass",
+      "creds": "Creds"
+    }
+  },
+  "status": {
+    "connected": "Connected",
+    "connecting": "Connecting",
+    "disconnected": "Disconnected",
+    "error": "Error"
+  },
+  "alerts": {
+    "shareUrlWarning": "Share URL Warning",
+    "localAuthAvailable": "Local Auth Available",
+    "localAuthBody": "A saved local profile matches this shared server setup and can re-apply remembered auth without putting credentials into the URL.",
+    "useLocalAuth": "Use Local Auth"
+  },
+  "serverOverview": {
+    "eyebrow": "Server Overview",
+    "title": "Server overview",
+    "server": "Server",
+    "status": "Status",
+    "activeServer": "Active Server",
+    "meta": "Server supporting facts",
+    "profile": "Profile",
+    "servers": "Servers",
+    "session": "Session",
+    "monitor": "Monitor",
+    "actions": {
+      "share": "Share",
+      "dossier": "Dossier"
+    },
+    "summary": {
+      "noServer": "No server",
+      "moreServers": "{{first}} (+{{count}} more)"
+    }
+  },
+  "signalDrawer": {
+    "eyebrow": "Signal Drawer",
+    "title": "Latest value preview",
+    "rawSubject": "Raw Subject",
+    "normalized": "Normalized",
+    "mode": "Mode",
+    "validationError": "Subject Validation Error",
+    "emptyTitle": "No live values yet",
+    "emptyBody": "After a matching subject publishes, the latest value table will populate here.",
+    "invalidEmptyBody": "Fix the subject pattern to resume live watching.",
+    "rowFacts": "{{time}} / {{hits}} / {{bytes}}",
+    "editor": {
+      "currentValue": "Current Value",
+      "writeValue": "Write Value",
+      "invalidJson": "The current input is not valid JSON",
+      "connectFirst": "Connect first before writing a variable value",
+      "published": "Published to {{subject}}",
+      "publishFailed": "Variable writeback failed",
+      "logged": "Logged {{subject}} to the console",
+      "reset": "Restored the latest received value",
+      "formatted": "JSON formatted",
+      "actions": {
+        "publish": "Publish",
+        "log": "Console.log",
+        "reset": "Reset",
+        "formatJson": "Format JSON",
+        "decodeBase64": "B64",
+        "rawBase64": "Raw"
+      }
+    },
+    "modeLabel": {
+      "idle": "Waiting Input",
+      "all-descendants": "All Descendants",
+      "explicit-wildcard": "Explicit Wildcard",
+      "invalid": "Invalid Subject"
+    },
+    "statusLabel": {
+      "enter": "Enter a subject to begin watching",
+      "enterDescendants": "Enter a subject to begin watching descendants",
+      "connectFirst": "Connect first to start live subject watching",
+      "subscribing": "Subscribing to {{subject}}",
+      "watching": "Watching {{subject}}",
+      "waiting": "Watching {{subject}}; waiting for messages",
+      "invalid": "Invalid subject",
+      "subscriptionFailed": "Subscription failed"
+    }
+  },
+  "requestPanel": {
+    "eyebrow": "Request Panel",
+    "title": "Reply console shell",
+    "requestSubject": "Request Subject",
+    "payloadJson": "Payload JSON",
+    "timeout": "Timeout",
+    "result": "Request Result",
+    "formatPayload": "Format Payload JSON",
+    "clearResult": "Clear",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "buttons": {
+      "connectFirst": "Connect First",
+      "sending": "Sending Request...",
+      "fixSubject": "Fix Request Subject",
+      "fixPayload": "Fix Payload JSON",
+      "fixTimeout": "Fix Timeout",
+      "send": "Send Request"
+    },
+    "statusLabel": {
+      "connectFirst": "Connect first to send request-reply messages",
+      "ready": "Ready to send request-reply",
+      "requesting": "Requesting {{subject}}",
+      "awaiting": "Awaiting responder reply...",
+      "responderError": "Responder returned an error payload",
+      "replyReceived": "Reply received from {{subject}}",
+      "requestFailed": "{{message}}"
+    },
+    "responseBody": {
+      "connectFirst": "Connect to a Kinopio / NATS server, then send a request to inspect the latest reply here.",
+      "ready": "Fill a request subject and optional JSON payload, then the latest reply will render here.",
+      "emptyReply": "(empty reply)"
+    },
+    "responseMeta": {
+      "awaiting": "{{timeout}} / {{time}}",
+      "received": "{{duration}} / {{bytes}} / {{time}}",
+      "error": "{{duration}} / {{time}}"
+    }
+  },
+  "serverDossier": {
+    "close": "Close",
+    "eyebrow": "Server Dossier",
+    "title": "Profiles and auth",
+    "rows": {
+      "profile": "Profile",
+      "active": "Active",
+      "monitor": "Monitor",
+      "mode": "Mode",
+      "timeout": "Timeout",
+      "status": "Status"
+    },
+    "sessionStatus": "Session Status",
+    "connectionError": "Connection Error",
+    "authStorageWarning": {
+      "title": "Auth Storage Warning",
+      "body": "When remember auth is enabled, credentials are written into this browser's localStorage. Same-origin scripts can read them; this is not an encrypted vault."
+    },
+    "fields": {
+      "savedProfile": "Saved Profile",
+      "profileName": "Profile Name",
+      "serverList": "Server List",
+      "monitoringBaseUrl": "Monitoring Base URL",
+      "selectionMode": "Selection Mode",
+      "connectTimeout": "Connect Timeout",
+      "authMode": "Auth Mode",
+      "token": "Token",
+      "username": "Username",
+      "password": "Password",
+      "credsContent": "Creds Content",
+      "rememberAuth": "Remember auth in local storage"
+    },
+    "actions": {
+      "newProfile": "New Profile",
+      "deleteProfile": "Delete Profile",
+      "clearLocalSave": "Clear Local Save",
+      "saveConnect": "Save + Connect"
+    },
+    "draftStatus": {
+      "pendingEdits": "Pending Edits",
+      "profileApplied": "Profile Applied",
+      "authSaved": "Auth Will Be Saved",
+      "authNotSaved": "Auth Will Not Be Saved",
+      "shareNoAuth": "URL Share Has No Auth"
+    },
+    "monitoringStatus": "Monitoring Status",
+    "monitoringSafety": {
+      "title": "Monitoring Safety Note",
+      "body": "NATS monitoring ports are usually unauthenticated. Only fill URLs you trust and that the browser can reach; CORS, TLS, or network failures do not affect the websocket connection itself."
+    },
+    "monitoringRows": {
+      "serverName": "Server Name",
+      "serverId": "Server ID",
+      "version": "Version",
+      "uptime": "Uptime",
+      "healthz": "Healthz",
+      "connections": "Connections",
+      "subscriptions": "Subscriptions",
+      "inMessages": "In Msgs",
+      "outMessages": "Out Msgs",
+      "inBytes": "In Bytes",
+      "outBytes": "Out Bytes",
+      "slowConsumers": "Slow Consumers"
+    },
+    "updatedAt": "Updated {{time}}",
+    "monitoringSummary": {
+      "noVarzUrl": "No Varz URL",
+      "loading": "Varz Loading",
+      "ready": "Varz Ready",
+      "error": "Varz Error"
+    },
+    "monitoringStatusLabel": {
+      "noUrl": "No monitoring URL configured for this profile.",
+      "reading": "Reading /varz from {{url}}",
+      "readingWhile": "Reading /varz from {{url}} while websocket is {{status}}",
+      "ready": "Monitoring read succeeded from {{url}}"
+    }
+  },
+  "shareSheet": {
+    "close": "Close",
+    "eyebrow": "Share Sheet",
+    "title": "Share restorable URL",
+    "includedFields": "Included Fields",
+    "includedFieldsBody": "servers, monitoring URL, selection mode, watcher subject, request subject, request payload, timeout.",
+    "excluded": {
+      "token": "No Token",
+      "password": "No Password",
+      "creds": "No Creds"
+    },
+    "payloadNote": {
+      "title": "Payload Note",
+      "body": "The current share link includes request payload text. Do not put sensitive business data into public links."
+    },
+    "shareUrlPreview": "Share URL Preview",
+    "copyStatus": "Copy Status",
+    "copyUrl": "Copy URL",
+    "copyHint": "Copy the current restorable URL into your clipboard.",
+    "copySuccess": "Restorable URL copied to clipboard.",
+    "copyFailed": "Copy failed. {{message}}"
+  },
+  "session": {
+    "opening": "Opening Kinopio websocket session",
+    "disconnected": "Session disconnected",
+    "disconnectedByOperator": "Session disconnected by operator",
+    "connectingViaMode": "Connecting via {{mode}} mode",
+    "connectedUsingMode": "Connected using {{mode}} mode",
+    "unknownConnectionError": "Unknown Kinopio connection error"
+  },
+  "errors": {
+    "shareState": {
+      "notObject": "Share state is not an object.",
+      "unsupportedVersion": "Unsupported share state version: {{version}}.",
+      "serversEmpty": "Shared servers list is empty.",
+      "unknownDecodeFailure": "Unknown share-state decode failure.",
+      "restoreFailed": "Shared URL could not be restored. {{message}}"
+    },
+    "request": {
+      "subjectEmptyTokens": "Subject tokens cannot contain blanks. Example: a..b is invalid.",
+      "subjectNoWildcard": "Request subject cannot contain wildcards; use an exact subject.",
+      "subjectEmpty": "Request subject is required.",
+      "subjectNeedDot": "Request subject must contain at least one `.`.",
+      "payloadInvalid": "Payload must be valid JSON; leave it empty to send an empty request.",
+      "timeoutEmpty": "Timeout is required.",
+      "timeoutPositiveInteger": "Timeout must be a positive integer in milliseconds.",
+      "timedOut": "Request timed out before any reply arrived.",
+      "noResponder": "No responder is currently available for this subject.",
+      "unknownFailure": "Request failed for an unknown reason."
+    },
+    "watch": {
+      "emptyTokens": "Subject tokens cannot contain blanks. Example: a..b is invalid.",
+      "noWildcard": "Plain subjects cannot directly include wildcards.",
+      "starToken": "`*` must occupy a whole token, for example a.b.*.",
+      "arrowToken": "`>` must occupy a whole token, for example a.b.>.",
+      "arrowLast": "`>` can only appear in the last token.",
+      "needDot": "Subscriptions currently require at least one `.`; a bare `>` is not supported yet."
+    },
+    "profile": {
+      "profileNameRequired": "Profile name is required.",
+      "serversRequired": "Provide at least one ws:// or wss:// server URL.",
+      "serversProtocol": "Server URLs must use ws:// or wss://.",
+      "serverInvalid": "Invalid server URL: {{server}}",
+      "monitorProtocol": "Monitoring URLs must use http:// or https://.",
+      "monitorInvalid": "Invalid monitoring URL: {{url}}",
+      "timeoutMinimum": "Timeout must be at least 1000 ms.",
+      "tokenRequired": "Token mode requires a token.",
+      "usernameRequired": "User-pass mode requires a username.",
+      "passwordRequired": "User-pass mode requires a password.",
+      "credsRequired": "Creds mode requires creds content.",
+      "credsInvalid": "Creds content is missing the standard JWT or NKEY sections."
+    },
+    "monitoring": {
+      "monitorProtocol": "Monitoring URLs must use http:// or https://.",
+      "monitorInvalid": "Invalid monitoring URL: {{url}}",
+      "httpError": "Monitoring endpoint returned HTTP {{status}} {{statusText}}",
+      "invalidJson": "Monitoring /varz did not return valid JSON.",
+      "unexpectedPayload": "Monitoring /varz returned an unexpected payload.",
+      "healthOptional": "Healthz is optional and did not return a healthy response.",
+      "healthUnavailable": "Healthz could not be read, but /varz may still be usable.",
+      "cancelled": "Monitoring request was cancelled.",
+      "fetchFailed": "The browser could not reach the monitoring endpoint. This is usually a CORS, TLS, or network issue.",
+      "unknownFailure": "Monitoring request failed for an unknown reason."
+    },
+    "clipboard": {
+      "apiUnavailable": "Clipboard API is unavailable in this browser context.",
+      "unknownFailure": "Unknown clipboard failure."
+    }
+  }
+}

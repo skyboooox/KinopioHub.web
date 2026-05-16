@@ -1,0 +1,37 @@
+.app-shell {
+  min-height: 100vh;
+  background:
+    linear-gradient(var(--grid-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-soft) 1px, transparent 1px),
+    var(--paper);
+  background-size: 24px 24px;
+}
+
+.app-chassis {
+  min-height: 100vh;
+  padding: var(--page-padding);
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.command-rail,
+.panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-grid {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (max-width: 799px) {
+  .app-chassis {
+    gap: 12px;
+    padding: 12px;
+  }
+}

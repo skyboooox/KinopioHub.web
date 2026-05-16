@@ -1,0 +1,316 @@
+{
+  "chrome": {
+    "title": "Kinopio HUB",
+    "subjectInput": "主题输入",
+    "theme": {
+      "light": "亮色",
+      "dark": "暗色"
+    },
+    "locale": {
+      "zh-CN": "中",
+      "en": "EN"
+    }
+  },
+  "common": {
+    "notAvailable": "不可用",
+    "bytes": "{{count}} 字节",
+    "hits": "{{count}} 次",
+    "ms": "{{count}} 毫秒",
+    "selectionMode": {
+      "ordered": "顺序",
+      "random": "随机",
+      "latency": "延迟优先"
+    },
+    "authMode": {
+      "none": "无",
+      "token": "Token",
+      "user-pass": "用户密码",
+      "creds": "Creds"
+    }
+  },
+  "status": {
+    "connected": "已连接",
+    "connecting": "连接中",
+    "disconnected": "已断开",
+    "error": "错误"
+  },
+  "alerts": {
+    "shareUrlWarning": "分享链接警告",
+    "localAuthAvailable": "可使用本地认证",
+    "localAuthBody": "当前分享配置与某个已保存的本地 profile 匹配，可以重新套用本地记住的认证信息，而无需把凭据放进 URL。",
+    "useLocalAuth": "使用本地认证"
+  },
+  "serverOverview": {
+    "eyebrow": "服务器总览",
+    "title": "服务器概览",
+    "server": "服务器",
+    "status": "状态",
+    "activeServer": "使用服务器",
+    "meta": "服务器补充信息",
+    "profile": "Profile",
+    "servers": "Servers",
+    "session": "会话",
+    "monitor": "监控",
+    "actions": {
+      "share": "分享",
+      "dossier": "设置"
+    },
+    "summary": {
+      "noServer": "无服务器",
+      "moreServers": "{{first}}（另 {{count}} 个）"
+    }
+  },
+  "signalDrawer": {
+    "eyebrow": "信号观察",
+    "title": "最新值预览",
+    "rawSubject": "原始主题",
+    "normalized": "归一化",
+    "mode": "模式",
+    "validationError": "主题校验错误",
+    "emptyTitle": "暂无实时值",
+    "emptyBody": "当有匹配的 subject 发布后，这里会填充最新值表。",
+    "invalidEmptyBody": "先修正 subject 模式，实时观察才会继续。",
+    "rowFacts": "{{time}} / {{hits}} / {{bytes}}",
+    "editor": {
+      "currentValue": "当前值",
+      "writeValue": "写入值",
+      "invalidJson": "当前输入不是合法 JSON",
+      "connectFirst": "请先连接，再写回变量值",
+      "published": "已发布到 {{subject}}",
+      "publishFailed": "变量写回失败",
+      "logged": "已将 {{subject}} 输出到控制台",
+      "reset": "已恢复为最近一次收到的值",
+      "formatted": "JSON 已美化",
+      "actions": {
+        "publish": "写回",
+        "log": "Console.log",
+        "reset": "重置",
+        "formatJson": "美化 JSON",
+        "decodeBase64": "B64",
+        "rawBase64": "原文"
+      }
+    },
+    "modeLabel": {
+      "idle": "等待输入",
+      "all-descendants": "全部子层",
+      "explicit-wildcard": "显式通配",
+      "invalid": "非法主题"
+    },
+    "statusLabel": {
+      "enter": "输入一个主题后开始观察",
+      "enterDescendants": "输入一个主题后开始观察其所有子层",
+      "connectFirst": "请先连接，再开始实时观察",
+      "subscribing": "正在订阅 {{subject}}",
+      "watching": "正在观察 {{subject}}",
+      "waiting": "正在观察 {{subject}}，等待消息中",
+      "invalid": "非法主题",
+      "subscriptionFailed": "订阅失败"
+    }
+  },
+  "requestPanel": {
+    "eyebrow": "请求面板",
+    "title": "Reply 控制台",
+    "requestSubject": "请求主题",
+    "payloadJson": "Payload JSON",
+    "timeout": "超时",
+    "result": "请求结果",
+    "formatPayload": "格式化 Payload JSON",
+    "clearResult": "清除",
+    "expand": "展开",
+    "collapse": "收起",
+    "buttons": {
+      "connectFirst": "先连接",
+      "sending": "请求发送中...",
+      "fixSubject": "修正请求主题",
+      "fixPayload": "修正 Payload JSON",
+      "fixTimeout": "修正超时",
+      "send": "发送请求"
+    },
+    "statusLabel": {
+      "connectFirst": "请先连接，再发送 request-reply",
+      "ready": "已准备好发送 request-reply",
+      "requesting": "正在请求 {{subject}}",
+      "awaiting": "等待 responder 响应中...",
+      "responderError": "Responder 返回了错误 payload",
+      "replyReceived": "已收到 {{subject}} 的响应",
+      "requestFailed": "{{message}}"
+    },
+    "responseBody": {
+      "connectFirst": "先连接 Kinopio / NATS 服务器，再在这里检查最近一次 request 的响应。",
+      "ready": "填写请求主题和可选 JSON payload，最近一次响应会显示在这里。",
+      "emptyReply": "（空响应）"
+    },
+    "responseMeta": {
+      "awaiting": "{{timeout}} / {{time}}",
+      "received": "{{duration}} / {{bytes}} / {{time}}",
+      "error": "{{duration}} / {{time}}"
+    }
+  },
+  "serverDossier": {
+    "close": "关闭",
+    "eyebrow": "服务器档案",
+    "title": "Profiles 与认证",
+    "rows": {
+      "profile": "Profile",
+      "active": "当前连接",
+      "monitor": "监控",
+      "mode": "模式",
+      "timeout": "超时",
+      "status": "状态"
+    },
+    "sessionStatus": "会话状态",
+    "connectionError": "连接错误",
+    "authStorageWarning": {
+      "title": "认证存储警告",
+      "body": "勾选 remember auth 后，认证信息会写入当前浏览器 localStorage。同源脚本可读，这不是加密保险箱。"
+    },
+    "fields": {
+      "savedProfile": "已保存 Profile",
+      "profileName": "Profile 名称",
+      "serverList": "服务器列表",
+      "monitoringBaseUrl": "监控基地址",
+      "selectionMode": "选择模式",
+      "connectTimeout": "连接超时",
+      "authMode": "认证模式",
+      "token": "Token",
+      "username": "用户名",
+      "password": "密码",
+      "credsContent": "Creds 内容",
+      "rememberAuth": "在本地存储中记住认证"
+    },
+    "actions": {
+      "newProfile": "新建 Profile",
+      "deleteProfile": "删除 Profile",
+      "clearLocalSave": "清空本地保存",
+      "saveConnect": "保存并连接"
+    },
+    "draftStatus": {
+      "pendingEdits": "有待应用修改",
+      "profileApplied": "当前 Profile 已应用",
+      "authSaved": "会保存认证",
+      "authNotSaved": "不会保存认证",
+      "shareNoAuth": "分享链接不含认证"
+    },
+    "monitoringStatus": "监控状态",
+    "monitoringSafety": {
+      "title": "监控安全说明",
+      "body": "NATS monitoring 端口通常不带认证。请只填写你确认安全且浏览器可访问的地址；CORS、TLS 或网络访问失败不会影响 websocket 连接本身。"
+    },
+    "monitoringRows": {
+      "serverName": "服务器名",
+      "serverId": "服务器 ID",
+      "version": "版本",
+      "uptime": "运行时长",
+      "healthz": "健康检查",
+      "connections": "连接数",
+      "subscriptions": "订阅数",
+      "inMessages": "入消息",
+      "outMessages": "出消息",
+      "inBytes": "入字节",
+      "outBytes": "出字节",
+      "slowConsumers": "慢消费者"
+    },
+    "updatedAt": "更新时间 {{time}}",
+    "monitoringSummary": {
+      "noVarzUrl": "未配置 Varz",
+      "loading": "Varz 读取中",
+      "ready": "Varz 就绪",
+      "error": "Varz 错误"
+    },
+    "monitoringStatusLabel": {
+      "noUrl": "当前 profile 未配置 monitoring URL。",
+      "reading": "正在从 {{url}} 读取 /varz",
+      "readingWhile": "正在从 {{url}} 读取 /varz，当前 websocket 状态为 {{status}}",
+      "ready": "已成功从 {{url}} 读取监控信息"
+    }
+  },
+  "shareSheet": {
+    "close": "关闭",
+    "eyebrow": "分享面板",
+    "title": "分享可恢复链接",
+    "includedFields": "包含字段",
+    "includedFieldsBody": "servers、monitoring URL、selection mode、watcher subject、request subject、request payload、timeout。",
+    "excluded": {
+      "token": "不含 Token",
+      "password": "不含密码",
+      "creds": "不含 Creds"
+    },
+    "payloadNote": {
+      "title": "Payload 说明",
+      "body": "当前分享链接会包含 request payload 文本。不要把敏感业务数据放进公开链接。"
+    },
+    "shareUrlPreview": "分享链接预览",
+    "copyStatus": "复制状态",
+    "copyUrl": "复制链接",
+    "copyHint": "将当前可恢复链接复制到剪贴板。",
+    "copySuccess": "可恢复链接已复制到剪贴板。",
+    "copyFailed": "复制失败。{{message}}"
+  },
+  "session": {
+    "opening": "正在打开 Kinopio websocket 会话",
+    "disconnected": "会话已断开",
+    "disconnectedByOperator": "会话已被操作方断开",
+    "connectingViaMode": "正在通过 {{mode}} 模式连接",
+    "connectedUsingMode": "已通过 {{mode}} 模式连接",
+    "unknownConnectionError": "未知 Kinopio 连接错误"
+  },
+  "errors": {
+    "shareState": {
+      "notObject": "分享状态不是对象。",
+      "unsupportedVersion": "不支持的分享状态版本：{{version}}。",
+      "serversEmpty": "分享状态里的服务器列表为空。",
+      "unknownDecodeFailure": "未知分享状态解码失败。",
+      "restoreFailed": "分享链接无法恢复。{{message}}"
+    },
+    "request": {
+      "subjectEmptyTokens": "subject token 之间不能留空，例如 a..b 非法。",
+      "subjectNoWildcard": "request subject 不能包含 wildcard；请填写精确 subject。",
+      "subjectEmpty": "request subject 不能为空。",
+      "subjectNeedDot": "当前只支持至少包含一个 `.` 的 request subject。",
+      "payloadInvalid": "payload 必须是合法 JSON；留空表示发送空请求。",
+      "timeoutEmpty": "timeout 不能为空。",
+      "timeoutPositiveInteger": "timeout 必须是正整数毫秒值。",
+      "timedOut": "请求在收到任何回复前就超时了。",
+      "noResponder": "当前没有 responder 在处理这个 subject。",
+      "unknownFailure": "请求失败，原因未知。"
+    },
+    "watch": {
+      "emptyTokens": "subject token 之间不能留空，例如 a..b 非法。",
+      "noWildcard": "普通 subject 不能直接包含 wildcard。",
+      "starToken": "`*` 只能单独占一个 token，例如 a.b.*。",
+      "arrowToken": "`>` 只能单独占一个 token，例如 a.b.>。",
+      "arrowLast": "`>` 只能出现在最后一个 token。",
+      "needDot": "当前只支持至少包含一个 `.` 的订阅结果；单独 `>` 暂不支持。"
+    },
+    "profile": {
+      "profileNameRequired": "profile name 不能为空。",
+      "serversRequired": "至少填写一个 ws:// 或 wss:// server URL。",
+      "serversProtocol": "server URL 只允许 ws:// 或 wss://。",
+      "serverInvalid": "无效 server URL：{{server}}",
+      "monitorProtocol": "monitoring URL 只允许 http:// 或 https://。",
+      "monitorInvalid": "无效 monitoring URL：{{url}}",
+      "timeoutMinimum": "超时时间至少为 1000 ms。",
+      "tokenRequired": "token 模式下必须填写 token。",
+      "usernameRequired": "user-pass 模式下必须填写用户名。",
+      "passwordRequired": "user-pass 模式下必须填写密码。",
+      "credsRequired": "creds 模式下必须填写 creds 内容。",
+      "credsInvalid": "creds 内容缺少标准 JWT 或 NKEY 段落。"
+    },
+    "monitoring": {
+      "monitorProtocol": "monitoring URL 只允许 http:// 或 https://。",
+      "monitorInvalid": "无效 monitoring URL：{{url}}",
+      "httpError": "监控端点返回了 HTTP {{status}} {{statusText}}",
+      "invalidJson": "Monitoring /varz 没有返回合法 JSON。",
+      "unexpectedPayload": "Monitoring /varz 返回了意外 payload。",
+      "healthOptional": "Healthz 是可选项，当前没有返回健康响应。",
+      "healthUnavailable": "Healthz 无法读取，但 /varz 可能仍可用。",
+      "cancelled": "监控请求已取消。",
+      "fetchFailed": "浏览器无法访问 monitoring 端点，通常是 CORS、TLS 或网络访问问题。",
+      "unknownFailure": "监控请求失败，原因未知。"
+    },
+    "clipboard": {
+      "apiUnavailable": "当前浏览器上下文不可用 Clipboard API。",
+      "unknownFailure": "未知剪贴板失败。"
+    }
+  }
+}
