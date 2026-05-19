@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useI18n, type LocalizedText } from "../i18n";
+import { formatJsonText } from "../lib/text/json";
 
 interface RequestPanelProps {
   requestSubject: string;
@@ -47,6 +48,8 @@ export function RequestPanel({
   const [rawPayloadBeforeFormat, setRawPayloadBeforeFormat] = useState<string | null>(
     null,
   );
+  const bodyInnerRef = useRef<HTMLDivElement | null>(null);
+  const [bodyHeight, setBodyHeight] = useState("0px");
   const responseVariant =
     status === "success" ? "success" : status === "error" ? "error" : "idle";
   const shouldShowResult = status !== "idle";
@@ -54,6 +57,29 @@ export function RequestPanel({
   const payloadHeightStyle = {
     "--signal-row-lines": payloadRows,
   } as CSSProperties;
+  const bodyHeightStyle = {
+    "--request-panel-body-height": bodyHeight,
+  } as CSSProperties;
+
+  useLayoutEffect(() => {
+    if (!isExpanded) {
+      return;
+    }
+
+    setBodyHeight(`${bodyInnerRef.current?.scrollHeight ?? 0}px`);
+  }, [
+    isExpanded,
+    requestSubject,
+    requestPayloadText,
+    timeoutText,
+    subjectError,
+    payloadError,
+    timeoutError,
+    status,
+    statusLabel,
+    responseText,
+    responseMeta,
+  ]);
 
   function handlePayloadFormatToggle() {
     if (isPayloadFormatted) {
@@ -63,12 +89,12 @@ export function RequestPanel({
       return;
     }
 
-    try {
-      onRequestPayloadChange(JSON.stringify(JSON.parse(requestPayloadText), null, 2));
+    const formattedPayload = formatJsonText(requestPayloadText);
+
+    if (formattedPayload) {
+      onRequestPayloadChange(formattedPayload);
       setRawPayloadBeforeFormat(requestPayloadText);
       setIsPayloadFormatted(true);
-    } catch {
-      onRequestPayloadChange(requestPayloadText);
     }
   }
 
@@ -88,8 +114,16 @@ export function RequestPanel({
         </button>
       </div>
 
-      {isExpanded ? (
-        <div id="request-panel-body" className="request-panel__body">
+      <div
+        id="request-panel-body"
+        className={`request-panel__body${
+          isExpanded ? " request-panel__body--expanded" : ""
+        }`}
+        style={bodyHeightStyle}
+        aria-hidden={isExpanded ? undefined : true}
+        inert={isExpanded ? undefined : true}
+      >
+        <div className="request-panel__body-inner" ref={bodyInnerRef}>
           <div className="request-stack">
             <label className="stack-field">
               <span className="eyebrow-label">{t("requestPanel.requestSubject")}</span>
@@ -193,7 +227,7 @@ export function RequestPanel({
             </div>
           ) : null}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

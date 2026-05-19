@@ -9,11 +9,6 @@ import {
   type KinopioServerProfileDraft,
   type KinopioServerProfileValidation,
 } from "../lib/kinopio/server-profile";
-import {
-  formatMonitoringBytes,
-  formatMonitoringCount,
-} from "../lib/monitoring/nats-monitoring";
-import type { NatsMonitoringSnapshot } from "../core/monitoring/useNatsMonitoring";
 
 type ServerDossierProps = {
   isOpen: boolean;
@@ -33,7 +28,6 @@ type ServerDossierProps = {
   onClearLocalSave: () => void;
   onProfileNameChange: (value: string) => void;
   onServersTextChange: (value: string) => void;
-  onMonitorUrlTextChange: (value: string) => void;
   onTimeoutMsTextChange: (value: string) => void;
   onServerSelectionModeChange: (value: ServerSelectionMode) => void;
   onAuthModeChange: (value: KinopioAuthMode) => void;
@@ -43,7 +37,6 @@ type ServerDossierProps = {
   onCredsTextChange: (value: string) => void;
   onRememberAuthChange: (value: boolean) => void;
   onApplyAndConnect: () => void;
-  monitoring: NatsMonitoringSnapshot;
 };
 
 export function ServerDossier({
@@ -64,7 +57,6 @@ export function ServerDossier({
   onClearLocalSave,
   onProfileNameChange,
   onServersTextChange,
-  onMonitorUrlTextChange,
   onTimeoutMsTextChange,
   onServerSelectionModeChange,
   onAuthModeChange,
@@ -74,9 +66,8 @@ export function ServerDossier({
   onCredsTextChange,
   onRememberAuthChange,
   onApplyAndConnect,
-  monitoring,
 }: ServerDossierProps) {
-  const { locale, t, tText, formatNumber } = useI18n();
+  const { t, tText } = useI18n();
 
   useEffect(() => {
     if (!isOpen) {
@@ -111,61 +102,7 @@ export function ServerDossier({
       t("serverDossier.rows.active"),
       tText(appliedProfile.servers[0] ?? { key: "serverOverview.summary.noServer" }),
     ],
-    [t("serverDossier.rows.monitor"), tText(monitoring.summaryLabel)],
   ];
-
-  const monitoringRows = monitoring.varz
-    ? [
-        [
-          t("serverDossier.monitoringRows.serverName"),
-          monitoring.varz.serverName || t("common.notAvailable"),
-        ],
-        [
-          t("serverDossier.monitoringRows.serverId"),
-          monitoring.varz.serverId || t("common.notAvailable"),
-        ],
-        [
-          t("serverDossier.monitoringRows.version"),
-          monitoring.varz.version || t("common.notAvailable"),
-        ],
-        [
-          t("serverDossier.monitoringRows.uptime"),
-          monitoring.varz.uptime || t("common.notAvailable"),
-        ],
-        [
-          t("serverDossier.monitoringRows.healthz"),
-          monitoring.healthLabel ?? t("common.notAvailable"),
-        ],
-        [
-          t("serverDossier.monitoringRows.connections"),
-          formatMonitoringCount(monitoring.varz.connections, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.subscriptions"),
-          formatMonitoringCount(monitoring.varz.subscriptions, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.inMessages"),
-          formatMonitoringCount(monitoring.varz.inMessages, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.outMessages"),
-          formatMonitoringCount(monitoring.varz.outMessages, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.inBytes"),
-          formatMonitoringBytes(monitoring.varz.inBytes, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.outBytes"),
-          formatMonitoringBytes(monitoring.varz.outBytes, locale),
-        ],
-        [
-          t("serverDossier.monitoringRows.slowConsumers"),
-          formatMonitoringCount(monitoring.varz.slowConsumers, locale),
-        ],
-      ]
-    : [];
 
   return (
     <div className="server-dossier-modal" role="presentation" onClick={onClose}>
@@ -294,20 +231,6 @@ export function ServerDossier({
             </label>
 
             <div className="dossier-settings-grid">
-            <label className="stack-field">
-              <span className="eyebrow-label">{t("serverDossier.fields.monitoringBaseUrl")}</span>
-              <input
-                type="url"
-                value={draft.monitorUrlText}
-                onChange={(event) => onMonitorUrlTextChange(event.target.value)}
-                placeholder="https://demo.nats.io:8222"
-                spellCheck={false}
-              />
-              {validation.errors.monitorUrl ? (
-                <span className="field-error">{tText(validation.errors.monitorUrl)}</span>
-              ) : null}
-            </label>
-
             <label className="stack-field stack-field--inline">
               <span className="eyebrow-label">{t("serverDossier.fields.connectTimeout")}</span>
               <input
@@ -455,39 +378,6 @@ export function ServerDossier({
                   <span className="field-error">{tText(validation.errors.creds)}</span>
                 ) : null}
               </label>
-            ) : null}
-
-            <div className="dossier-note-grid">
-              <div
-                className={`panel-note panel-note--compact${monitoring.status === "error" ? " panel-note--error" : " panel-note--status"}`}
-              >
-                <p className="panel-note__title">{t("serverDossier.monitoringStatus")}</p>
-                <p>{tText(monitoring.statusLabel)}</p>
-                {monitoring.refreshedAt ? (
-                  <span className="panel-note__meta">
-                    {t("serverDossier.updatedAt", { time: monitoring.refreshedAt })}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            {monitoring.varz ? (
-              <div
-                className="dossier-table"
-                role="table"
-                aria-label={t("serverDossier.monitoringStatus")}
-              >
-                {monitoringRows.map(([label, value]) => (
-                  <div className="dossier-table__row" role="row" key={label}>
-                    <span className="dossier-table__label" role="rowheader">
-                      {label}
-                    </span>
-                    <span className="dossier-table__value" role="cell">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
             ) : null}
 
             <div className="panel-actions">

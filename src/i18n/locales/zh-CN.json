@@ -2,6 +2,7 @@
   "chrome": {
     "title": "Kinopio HUB",
     "subjectInput": "Subject",
+    "subjectInputPlaceholder": "scope.variable",
     "a11y": {
       "main": "Kinopio HUB 主界面",
       "appearance": "外观控制",
@@ -18,7 +19,6 @@
     }
   },
   "common": {
-    "notAvailable": "无",
     "bytes": "{{count}} 字节",
     "hits": "{{count}} 次",
     "ms": "{{count}} 毫秒",
@@ -49,14 +49,7 @@
   "serverOverview": {
     "eyebrow": "服务器",
     "title": "节点",
-    "server": "服务器",
-    "status": "状态",
-    "activeServer": "当前服务器",
-    "meta": "服务器信息",
-    "profile": "Profile",
     "servers": "Servers",
-    "session": "会话",
-    "monitor": "监控",
     "actions": {
       "share": "分享",
       "dossier": "设置"
@@ -64,19 +57,44 @@
     "summary": {
       "noServer": "未配置服务器",
       "moreServers": "{{first}}（另 {{count}} 个）"
+    },
+    "serverLatency": "{{rtt}}ms",
+    "serverState": {
+      "connected": "connected",
+      "probing": "probing",
+      "reachable": "reachable",
+      "failed": "failed",
+      "standby": "standby"
+    },
+    "serverReason": {
+      "connected": "当前会话连接到此服务器。",
+      "probing": "正在主动探测此服务器。",
+      "standby": "会话已断开，等待下一次连接或探测。",
+      "reachable": "主动探测可达，RTT {{rtt}} ms；当前会话以 {{mode}} 模式连接到 {{active}}。",
+      "reachableNoRtt": "主动探测可达；当前会话以 {{mode}} 模式连接到 {{active}}。",
+      "failedTimeout": "主动探测超时：{{message}}",
+      "failedAuth": "主动探测被认证或权限拒绝：{{message}}",
+      "failedTls": "主动探测遇到 TLS 或证书问题：{{message}}",
+      "failedNetwork": "主动探测失败，通常是网络、TLS、CORS 或 WebSocket 不可达：{{message}}",
+      "failedUnknown": "主动探测失败，原因未知。"
     }
   },
   "signalDrawer": {
     "eyebrow": "信号",
     "title": "变量",
-    "rawSubject": "原始 Subject",
-    "normalized": "归一化",
-    "mode": "模式",
     "validationError": "Subject 错误",
     "emptyTitle": "暂无实时值",
     "emptyBody": "收到匹配 subject 后，这里显示变量。",
     "invalidEmptyBody": "修正 subject 后恢复观察。",
     "rowFacts": "{{time}} / {{hits}} / {{bytes}}",
+    "relative": {
+      "label": "{{time}}更新",
+      "seconds": "{{count}} 秒前",
+      "minutes": "{{count}} 分钟前",
+      "hours": "{{count}} 小时前",
+      "days": "{{count}} 天前",
+      "compact": "{{value}}前"
+    },
     "rowsLabel": "实时值列表",
     "editor": {
       "currentValue": "当前值",
@@ -88,11 +106,14 @@
       "logged": "已输出 {{subject}}",
       "reset": "已恢复当前变量",
       "formatted": "JSON 已格式化",
+      "copied": "已复制当前值",
+      "copyFailed": "复制失败：{{message}}",
       "actions": {
         "edit": "SET->",
         "doneEditing": "完成",
         "publish": "写回",
         "log": "Console.log",
+        "copy": "Copy",
         "reset": "重置",
         "formatJson": "格式化 JSON",
         "decodeBase64": "B64",
@@ -118,7 +139,7 @@
   },
   "requestPanel": {
     "eyebrow": "请求",
-    "title": "发起请求",
+    "title": "请求",
     "requestSubject": "请求 Subject",
     "payloadJson": "Payload JSON",
     "timeout": "超时",
@@ -141,8 +162,7 @@
       "requesting": "请求 {{subject}}",
       "awaiting": "等待 responder...",
       "responderError": "Responder 返回错误 payload",
-      "replyReceived": "已收到 {{subject}} 响应",
-      "requestFailed": "{{message}}"
+      "replyReceived": "已收到 {{subject}} 响应"
     },
     "responseBody": {
       "connectFirst": "连接 Kinopio / NATS 后查看最近响应。",
@@ -162,9 +182,6 @@
     "rows": {
       "profile": "Profile",
       "active": "当前连接",
-      "monitor": "监控",
-      "mode": "模式",
-      "timeout": "超时",
       "status": "状态"
     },
     "sessionStatus": "会话",
@@ -177,7 +194,6 @@
       "savedProfile": "已保存 Profile",
       "profileName": "Profile 名称",
       "serverList": "服务器列表",
-      "monitoringBaseUrl": "监控地址",
       "selectionMode": "选择模式",
       "connectTimeout": "连接超时",
       "authMode": "认证模式",
@@ -195,58 +211,16 @@
     },
     "profileNames": {
       "new": "Profile {{count}}",
+      "demo": "Demo WSS",
       "shared": "分享链接"
     },
-    "monitoringStatus": "监控",
-    "monitoringSafety": {
-      "title": "监控提示",
-      "body": "NATS monitoring 通常无认证。仅填写可信且浏览器可访问的地址；CORS、TLS 或网络错误不影响 websocket。"
-    },
-    "monitoringRows": {
-      "serverName": "服务器名",
-      "serverId": "服务器 ID",
-      "version": "版本",
-      "uptime": "运行时长",
-      "healthz": "健康检查",
-      "connections": "连接",
-      "subscriptions": "订阅",
-      "inMessages": "入消息",
-      "outMessages": "出消息",
-      "inBytes": "入字节",
-      "outBytes": "出字节",
-      "slowConsumers": "慢消费者"
-    },
-    "updatedAt": "更新 {{time}}",
-    "monitoringSummary": {
-      "noVarzUrl": "未配置 Varz",
-      "loading": "读取 Varz",
-      "ready": "Varz 就绪",
-      "error": "Varz 异常"
-    },
-    "monitoringStatusLabel": {
-      "noUrl": "此 Profile 未配置 monitoring URL。",
-      "reading": "读取 {{url}} /varz",
-      "readingWhile": "读取 {{url}} /varz，websocket 为 {{status}}",
-      "ready": "已读取 {{url}} 监控信息"
-    }
+    "updatedAt": "更新 {{time}}"
   },
   "shareSheet": {
     "close": "关闭",
     "eyebrow": "分享",
     "title": "可恢复链接",
-    "includedFields": "包含",
-    "includedFieldsBody": "servers、monitoring URL、selection mode、watcher subject、request subject、request payload、timeout。",
-    "excluded": {
-      "token": "不含 Token",
-      "password": "不含密码",
-      "creds": "不含 Creds"
-    },
-    "payloadNote": {
-      "title": "Payload 提示",
-      "body": "分享链接会包含 request payload 文本；不要放入敏感业务数据。"
-    },
     "shareUrlPreview": "链接",
-    "copyStatus": "复制状态",
     "copyUrl": "复制",
     "copyHint": "复制当前可恢复链接。",
     "copySuccess": "链接已复制。",
@@ -293,26 +267,12 @@
       "serversRequired": "至少填写一个 ws:// 或 wss:// 服务器。",
       "serversProtocol": "服务器只支持 ws:// 或 wss://。",
       "serverInvalid": "无效服务器：{{server}}",
-      "monitorProtocol": "监控地址只支持 http:// 或 https://。",
-      "monitorInvalid": "无效监控地址：{{url}}",
       "timeoutMinimum": "超时至少 1000 ms。",
       "tokenRequired": "Token 模式需要 token。",
       "usernameRequired": "账号模式需要用户名。",
       "passwordRequired": "账号模式需要密码。",
       "credsRequired": "Creds 模式需要 creds 内容。",
       "credsInvalid": "Creds 缺少标准 JWT 或 NKEY 段落。"
-    },
-    "monitoring": {
-      "monitorProtocol": "监控地址只支持 http:// 或 https://。",
-      "monitorInvalid": "无效监控地址：{{url}}",
-      "httpError": "监控端点返回 HTTP {{status}} {{statusText}}",
-      "invalidJson": "Monitoring /varz 未返回合法 JSON。",
-      "unexpectedPayload": "Monitoring /varz payload 异常。",
-      "healthOptional": "Healthz 可选，当前无健康响应。",
-      "healthUnavailable": "Healthz 不可读，/varz 可能仍可用。",
-      "cancelled": "监控请求已取消。",
-      "fetchFailed": "浏览器无法访问 monitoring，通常是 CORS、TLS 或网络问题。",
-      "unknownFailure": "监控请求失败，原因未知。"
     },
     "clipboard": {
       "apiUnavailable": "当前浏览器不可用 Clipboard API。",

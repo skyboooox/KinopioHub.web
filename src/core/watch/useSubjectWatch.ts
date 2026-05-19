@@ -1,13 +1,17 @@
 import type KinopioHub from "kinopio-hub";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import { formatDateTime, msg, type LocaleCode, type LocalizedText } from "../../i18n";
+import { msg, type LocaleCode, type LocalizedText } from "../../i18n";
+import { getSubjectPrefix } from "../../lib/nats-subject/subject-parsing";
 import type { WatchSubjectResolution } from "../../lib/nats-subject/watch-subject";
+import { stringifyJsonValue } from "../../lib/text/json";
+import { createClockTimestamp } from "../../lib/time/timestamp";
 
 export interface LatestSignalRow {
   subject: string;
   prefix: string;
   receivedAt: string;
+  receivedAtMs: number;
   count: number;
   sizeBytes: number;
   payload: string;
@@ -17,15 +21,6 @@ export interface LatestSignalRow {
 interface SubjectWatcherSnapshot {
   rows: LatestSignalRow[];
   statusLabel: LocalizedText;
-}
-
-function createTimestamp(locale: LocaleCode): string {
-  return formatDateTime(locale, new Date(), {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
 }
 
 function extractSubject(message: unknown, fallbackSubject: string): string {
@@ -67,21 +62,7 @@ function formatPayload(data: unknown): string {
     return "undefined";
   }
 
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return String(data);
-  }
-}
-
-function derivePrefix(subject: string): string {
-  const tokens = subject.split(".");
-
-  if (tokens.length <= 1) {
-    return subject;
-  }
-
-  return tokens.slice(0, -1).join(".");
+  return stringifyJsonValue(data);
 }
 
 export function useSubjectWatch(
@@ -100,6 +81,7 @@ export function useSubjectWatch(
     const timerHandles = clearFreshTimersRef.current;
 
     return () => {
+      // Cancel all stale freshness timers when subject changes or component unmounts.
       Object.values(timerHandles).forEach((handle) => window.clearTimeout(handle));
       clearFreshTimersRef.current = {};
     };
@@ -147,11 +129,13 @@ export function useSubjectWatch(
         }
 
         const payload = formatPayload(data);
+        const receivedAtMs = Date.now();
         const subject = extractSubject(message, subscriptionSubject);
         const nextRow: LatestSignalRow = {
           subject,
-          prefix: derivePrefix(subject),
-          receivedAt: createTimestamp(locale),
+          prefix: getSubjectPrefix(subject),
+          receivedAt: createClockTimestamp(locale),
+          receivedAtMs,
           count: 1,
           sizeBytes: extractSizeBytes(message, payload),
           payload,
@@ -188,6 +172,7 @@ export function useSubjectWatch(
       })
       .then((subscription) => {
         if (cancelled) {
+          // If cleanup already ran while waiting for sub creation, immediately release both handles.
           subscription.unsubscribe();
           scope.dispose();
           return;
@@ -203,6 +188,7 @@ export function useSubjectWatch(
           return;
         }
 
+        scope.dispose();
         const message =
           error instanceof Error && error.message.trim()
             ? error.message
@@ -212,6 +198,7 @@ export function useSubjectWatch(
 
     return () => {
       cancelled = true;
+      // Scope/handler must be disposed in one path to avoid subscription leaks in strict-mode.
       unsubscribe?.();
       scope.dispose();
     };

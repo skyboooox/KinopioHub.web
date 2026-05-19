@@ -24,7 +24,8 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "kinopio-hub": "^2.1.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "skyboxtool": "^1.0.11"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

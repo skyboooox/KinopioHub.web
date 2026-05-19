@@ -1,4 +1,10 @@
 import { msg, type LocalizedText } from "../../i18n";
+import {
+  containsNatsWildcard,
+  splitDotSubject,
+  validateNatsSubjectTokens,
+  type NatsSubjectTokenFailure,
+} from "./subject-parsing";
 
 export type WatchSubjectMode =
   | "idle"
@@ -16,7 +22,15 @@ export interface WatchSubjectResolution {
   errorMessage: LocalizedText | null;
 }
 
+// Default watch target while input is empty; keeps UI state predictable while still using a valid NATS pattern.
 const PLACEHOLDER_SUBJECT = "scope.variable.>";
+const WATCH_TOKEN_ERROR_KEY_BY_FAILURE: Record<NatsSubjectTokenFailure, string> = {
+  "empty-token": "errors.watch.emptyTokens",
+  "wildcard-not-allowed": "errors.watch.noWildcard",
+  "star-token": "errors.watch.starToken",
+  "arrow-token": "errors.watch.arrowToken",
+  "arrow-not-last": "errors.watch.arrowLast",
+};
 
 function createInvalidResolution(
   rawInput: string,
@@ -34,57 +48,14 @@ function createInvalidResolution(
   };
 }
 
-function splitSubject(subject: string) {
-  const separatorIndex = subject.indexOf(".");
-
-  if (separatorIndex === -1) {
+function formatWatchTokenFailure(
+  failure: NatsSubjectTokenFailure | null,
+): LocalizedText | null {
+  if (!failure) {
     return null;
   }
 
-  return {
-    scopeName: subject.slice(0, separatorIndex),
-    variableName: subject.slice(separatorIndex + 1),
-  };
-}
-
-function validateSubjectTokens(
-  subject: string,
-  wildcardMode: boolean,
-): LocalizedText | null {
-  const tokens = subject.split(".");
-
-  if (tokens.some((token) => token.length === 0)) {
-    return msg("errors.watch.emptyTokens");
-  }
-
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    const isLastToken = index === tokens.length - 1;
-    const containsStar = token.includes("*");
-    const containsArrow = token.includes(">");
-
-    if (!wildcardMode && (containsStar || containsArrow)) {
-      return msg("errors.watch.noWildcard");
-    }
-
-    if (!containsStar && !containsArrow) {
-      continue;
-    }
-
-    if (containsStar && token !== "*") {
-      return msg("errors.watch.starToken");
-    }
-
-    if (containsArrow && token !== ">") {
-      return msg("errors.watch.arrowToken");
-    }
-
-    if (token === ">" && !isLastToken) {
-      return msg("errors.watch.arrowLast");
-    }
-  }
-
-  return null;
+  return msg(WATCH_TOKEN_ERROR_KEY_BY_FAILURE[failure]);
 }
 
 export function normalizeWatchSubjectInput(
@@ -104,8 +75,14 @@ export function normalizeWatchSubjectInput(
     };
   }
 
-  const wildcardMode = trimmedInput.includes("*") || trimmedInput.includes(">");
-  const validationError = validateSubjectTokens(trimmedInput, wildcardMode);
+  // For non-wildcard input we append `.>` to subscribe to all descendants.
+  // If input contains wildcard, we only accept explicit NATS `*`/`>` token usage.
+  const wildcardMode = containsNatsWildcard(trimmedInput);
+  const validationError = formatWatchTokenFailure(
+    validateNatsSubjectTokens(trimmedInput, {
+      allowWildcard: wildcardMode,
+    }),
+  );
   if (validationError) {
     return createInvalidResolution(rawInput, trimmedInput, validationError);
   }
@@ -113,7 +90,7 @@ export function normalizeWatchSubjectInput(
   const normalizedSubject = wildcardMode
     ? trimmedInput
     : `${trimmedInput}.>`;
-  const subjectParts = splitSubject(normalizedSubject);
+  const subjectParts = splitDotSubject(normalizedSubject);
 
   if (!subjectParts) {
     return createInvalidResolution(

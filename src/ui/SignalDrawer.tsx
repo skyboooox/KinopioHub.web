@@ -1,17 +1,19 @@
 import type KinopioHub from "kinopio-hub";
-import type { CSSProperties, MutableRefObject, ReactNode } from "react";
+import type { MutableRefObject } from "react";
 import { useEffect, useState } from "react";
 import { msg, useI18n, type LocalizedText } from "../i18n";
+import {
+  copyTextToClipboard,
+  formatClipboardError,
+} from "../lib/browser/clipboard";
+import { splitDotSubject } from "../lib/nats-subject/subject-parsing";
+import {
+  formatJsonText,
+  looksLikeJsonText,
+  parseJsonText,
+} from "../lib/text/json";
 import type { LatestSignalRow } from "../core/watch/useSubjectWatch";
-
-type SignalActionState = {
-  writeText: string;
-  dirty: boolean;
-  editing: boolean;
-  displayFormatted: boolean;
-  statusText: LocalizedText | null;
-  statusKind: "idle" | "success" | "error";
-};
+import { SignalRow, type SignalActionState } from "./SignalRow";
 
 type SignalDrawerProps = {
   hubRef: MutableRefObject<KinopioHub | null>;
@@ -20,42 +22,11 @@ type SignalDrawerProps = {
   rows: LatestSignalRow[];
 };
 
-type ParsedJsonDisplay =
-  | {
-      kind: "json";
-      value: unknown;
-    }
-  | {
-      kind: "text";
-      value: string;
-    };
-
-type Base64DecodeResult = {
-  text: string;
-  json: unknown | null;
-};
-
-function splitSubject(subject: string) {
-  const separatorIndex = subject.indexOf(".");
-
-  if (separatorIndex === -1) {
-    return null;
-  }
-
-  return {
-    scopeName: subject.slice(0, separatorIndex),
-    variableName: subject.slice(separatorIndex + 1),
-  };
-}
-
 function parseSignalValueText(valueText: string): {
   value: unknown;
   errorMessage: LocalizedText | null;
 } {
   const trimmed = valueText.trim();
-  const looksLikeJson =
-    /^[\[{"]/.test(trimmed) ||
-    /^(true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)$/.test(trimmed);
 
   if (!trimmed) {
     return {
@@ -64,217 +35,25 @@ function parseSignalValueText(valueText: string): {
     };
   }
 
-  if (!looksLikeJson) {
+  if (!looksLikeJsonText(trimmed)) {
     return {
       value: valueText,
       errorMessage: null,
     };
   }
 
-  try {
+  const parsed = parseJsonText(trimmed);
+  if (parsed.ok) {
     return {
-      value: JSON.parse(trimmed) as unknown,
+      value: parsed.value,
       errorMessage: null,
     };
-  } catch {
-    return {
-      value: valueText,
-      errorMessage: msg("signalDrawer.editor.invalidJson"),
-    };
-  }
-}
-
-function formatJsonValueText(valueText: string): {
-  valueText: string;
-  errorMessage: LocalizedText | null;
-} {
-  const trimmed = valueText.trim();
-  if (!trimmed) {
-    return {
-      valueText,
-      errorMessage: msg("signalDrawer.editor.invalidJson"),
-    };
   }
 
-  try {
-    return {
-      valueText: JSON.stringify(JSON.parse(trimmed), null, 2),
-      errorMessage: null,
-    };
-  } catch {
-    return {
-      valueText,
-      errorMessage: msg("signalDrawer.editor.invalidJson"),
-    };
-  }
-}
-
-function parseJsonDisplay(valueText: string): ParsedJsonDisplay {
-  try {
-    return {
-      kind: "json",
-      value: JSON.parse(valueText) as unknown,
-    };
-  } catch {
-    return {
-      kind: "text",
-      value: valueText,
-    };
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function stringifyPrimitive(value: unknown): string {
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-
-  if (value === null) {
-    return "null";
-  }
-
-  return String(value);
-}
-
-function decodeUtf8(binaryText: string): string {
-  const bytes = Uint8Array.from(binaryText, (character) => character.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-function decodeBase64Value(value: string): Base64DecodeResult | null {
-  const compact = value.trim();
-  if (
-    compact.length < 16 ||
-    compact.length % 4 === 1 ||
-    !/^[A-Za-z0-9+/_-]+={0,2}$/.test(compact)
-  ) {
-    return null;
-  }
-
-  try {
-    const normalized = compact.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const text = decodeUtf8(atob(padded));
-    const printableCharacters = text.match(/[\t\n\r -~\u00a0-\uffff]/g)?.length ?? 0;
-    if (!text.trim() || printableCharacters / text.length < 0.9) {
-      return null;
-    }
-
-    try {
-      return {
-        text,
-        json: JSON.parse(text) as unknown,
-      };
-    } catch {
-      return {
-        text,
-        json: null,
-      };
-    }
-  } catch {
-    return null;
-  }
-}
-
-function JsonTree({
-  value,
-  path,
-  decodedBase64,
-  onToggleBase64,
-  decodeLabel,
-  rawLabel,
-}: {
-  value: unknown;
-  path: string;
-  decodedBase64: Record<string, boolean>;
-  onToggleBase64: (path: string) => void;
-  decodeLabel: string;
-  rawLabel: string;
-}): ReactNode {
-  if (Array.isArray(value)) {
-    return (
-      <div className="json-tree json-tree--array">
-        <span className="json-tree__bracket">[</span>
-        <div className="json-tree__children">
-          {value.map((item, index) => (
-            <div className="json-tree__row" key={`${path}.${index}`}>
-              <span className="json-tree__key">{index}</span>
-              <JsonTree
-                value={item}
-                path={`${path}.${index}`}
-                decodedBase64={decodedBase64}
-                onToggleBase64={onToggleBase64}
-                decodeLabel={decodeLabel}
-                rawLabel={rawLabel}
-              />
-            </div>
-          ))}
-        </div>
-        <span className="json-tree__bracket">]</span>
-      </div>
-    );
-  }
-
-  if (isRecord(value)) {
-    return (
-      <div className="json-tree json-tree--object">
-        <span className="json-tree__bracket">{"{"}</span>
-        <div className="json-tree__children">
-          {Object.entries(value).map(([key, item]) => (
-            <div className="json-tree__row" key={`${path}.${key}`}>
-              <span className="json-tree__key">{key}</span>
-              <JsonTree
-                value={item}
-                path={`${path}.${key}`}
-                decodedBase64={decodedBase64}
-                onToggleBase64={onToggleBase64}
-                decodeLabel={decodeLabel}
-                rawLabel={rawLabel}
-              />
-            </div>
-          ))}
-        </div>
-        <span className="json-tree__bracket">{"}"}</span>
-      </div>
-    );
-  }
-
-  if (typeof value === "string") {
-    const base64Value = decodeBase64Value(value);
-    const isDecoded = Boolean(decodedBase64[path]);
-
-    return (
-      <span className="json-tree__value-wrap">
-        <span className="json-tree__value json-tree__value--string">
-          {isDecoded && base64Value
-            ? base64Value.json
-              ? JSON.stringify(base64Value.json, null, 2)
-              : base64Value.text
-            : JSON.stringify(value)}
-        </span>
-        {base64Value ? (
-          <button
-            type="button"
-            className={`json-tree__base64-toggle${
-              isDecoded ? " json-tree__base64-toggle--active" : ""
-            }`}
-            onClick={() => onToggleBase64(path)}
-          >
-            {isDecoded ? rawLabel : decodeLabel}
-          </button>
-        ) : null}
-      </span>
-    );
-  }
-
-  return (
-    <span className={`json-tree__value json-tree__value--${typeof value}`}>
-      {stringifyPrimitive(value)}
-    </span>
-  );
+  return {
+    value: valueText,
+    errorMessage: msg("signalDrawer.editor.invalidJson"),
+  };
 }
 
 export function SignalDrawer({
@@ -283,9 +62,10 @@ export function SignalDrawer({
   errorMessage,
   rows,
 }: SignalDrawerProps) {
-  const { t, tText, formatNumber } = useI18n();
+  const { locale, t, tText } = useI18n();
   const [actions, setActions] = useState<Record<string, SignalActionState>>({});
   const [decodedBase64, setDecodedBase64] = useState<Record<string, boolean>>({});
+  const [relativeClock, setRelativeClock] = useState(0);
 
   useEffect(() => {
     setActions((current) => {
@@ -309,6 +89,20 @@ export function SignalDrawer({
       return next;
     });
   }, [rows]);
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setRelativeClock((value) => value + 1);
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [rows.length]);
 
   function updateActionState(
     subject: string,
@@ -343,7 +137,7 @@ export function SignalDrawer({
       return;
     }
 
-    const subjectParts = splitSubject(row.subject);
+    const subjectParts = splitDotSubject(row.subject);
     if (!subjectParts || sessionStatus !== "connected" || !hubRef.current) {
       updateActionState(row.subject, (current) => ({
         ...current,
@@ -429,11 +223,11 @@ export function SignalDrawer({
       return;
     }
 
-    const formatted = formatJsonValueText(row.payload);
-    if (formatted.errorMessage) {
+    const formattedValue = formatJsonText(row.payload);
+    if (!formattedValue) {
       updateActionState(row.subject, (current) => ({
         ...current,
-        statusText: formatted.errorMessage,
+        statusText: msg("signalDrawer.editor.invalidJson"),
         statusKind: "error",
       }));
       return;
@@ -441,8 +235,8 @@ export function SignalDrawer({
 
     updateActionState(row.subject, (current) => ({
       ...current,
-      writeText: current.editing ? formatted.valueText : current.writeText,
-      dirty: current.editing ? formatted.valueText !== row.payload : current.dirty,
+      writeText: current.editing ? formattedValue : current.writeText,
+      dirty: current.editing ? formattedValue !== row.payload : current.dirty,
       displayFormatted: true,
       statusText: msg("signalDrawer.editor.formatted"),
       statusKind: "success",
@@ -454,6 +248,25 @@ export function SignalDrawer({
       ...current,
       [path]: !current[path],
     }));
+  }
+
+  async function handleCopyCurrentValue(row: LatestSignalRow, valueToCopy: string) {
+    try {
+      await copyTextToClipboard(valueToCopy);
+      updateActionState(row.subject, (current) => ({
+        ...current,
+        statusText: msg("signalDrawer.editor.copied"),
+        statusKind: "success",
+      }));
+    } catch (error) {
+      updateActionState(row.subject, (current) => ({
+        ...current,
+        statusText: msg("signalDrawer.editor.copyFailed", {
+          message: formatClipboardError(error, locale),
+        }),
+        statusKind: "error",
+      }));
+    }
   }
 
   return (
@@ -481,178 +294,25 @@ export function SignalDrawer({
             </p>
           </div>
         ) : null}
-        {rows.map((row) => {
-          const actionState = actions[row.subject];
-          const displayValue = actionState?.displayFormatted
-            ? formatJsonValueText(row.payload).valueText
-            : row.payload;
-          const parsedDisplay = parseJsonDisplay(displayValue);
-          const writeValue = actionState?.writeText ?? row.payload;
-          const displayRows = Math.max(2, displayValue.split("\n").length + 1);
-          const writeRows = Math.max(2, writeValue.split("\n").length + 1);
-          const displayHeightStyle = {
-            "--signal-row-lines": displayRows,
-          } as CSSProperties;
-          const writeHeightStyle = {
-            "--signal-row-lines": writeRows,
-          } as CSSProperties;
-          const isEditing = Boolean(actionState?.editing);
-
-          return (
-            <article
-              key={row.subject}
-              className={`signal-row${row.fresh ? " signal-row--fresh" : ""}`}
-              role="listitem"
-            >
-              <div className="signal-row__meta">
-                <div className="signal-row__labels">
-                  <p className="signal-row__subject">{row.subject}</p>
-                  <p className="signal-row__facts">
-                    {t("signalDrawer.rowFacts", {
-                      time: row.receivedAt,
-                      hits: t("common.hits", {
-                        count: formatNumber(row.count),
-                      }),
-                      bytes: t("common.bytes", {
-                        count: formatNumber(row.sizeBytes),
-                      }),
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="signal-row__value-grid">
-                <div className="signal-row__display-card">
-                  <div className="signal-row__section-head">
-                    <span className="eyebrow-label">{t("signalDrawer.editor.currentValue")}</span>
-                    <button
-                      type="button"
-                      className={`signal-row__format-toggle${
-                        actionState?.displayFormatted
-                          ? " signal-row__format-toggle--active"
-                          : ""
-                      }`}
-                      aria-label={t("signalDrawer.editor.actions.formatJson")}
-                      aria-pressed={actionState?.displayFormatted ? "true" : "false"}
-                      title={t("signalDrawer.editor.actions.formatJson")}
-                      onClick={() => {
-                        handleFormatJsonToggle(row);
-                      }}
-                    >
-                      {"{}"}
-                    </button>
-                  </div>
-                  <div
-                    className="signal-row__display-value"
-                    style={displayHeightStyle}
-                  >
-                    {actionState?.displayFormatted && parsedDisplay.kind === "json" ? (
-                      <JsonTree
-                        value={parsedDisplay.value}
-                        path={row.subject}
-                        decodedBase64={decodedBase64}
-                        onToggleBase64={handleBase64Toggle}
-                        decodeLabel={t("signalDrawer.editor.actions.decodeBase64")}
-                        rawLabel={t("signalDrawer.editor.actions.rawBase64")}
-                      />
-                    ) : (
-                      <pre className="signal-row__display-raw">{displayValue}</pre>
-                    )}
-                  </div>
-                </div>
-
-                {isEditing ? (
-                  <div className="signal-row__write-card">
-                    <label className="signal-row__editor-wrap">
-                      <span className="eyebrow-label">
-                        {t("signalDrawer.editor.writeValue")}
-                      </span>
-                      <textarea
-                        className="signal-row__editor"
-                        rows={writeRows}
-                        style={writeHeightStyle}
-                        spellCheck={false}
-                        value={writeValue}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          updateActionState(row.subject, (current) => ({
-                            ...current,
-                            writeText: nextValue,
-                            dirty: nextValue !== row.payload,
-                            editing: true,
-                            statusText: null,
-                            statusKind: "idle",
-                          }));
-                        }}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-              <div className="signal-row__actions">
-                <button
-                  type="button"
-                  className="signal-row__action-button"
-                  aria-expanded={isEditing}
-                  onClick={() => {
-                    updateActionState(row.subject, (current) => ({
-                      ...current,
-                      editing: !current.editing,
-                      writeText:
-                        !current.editing && current.displayFormatted
-                          ? displayValue
-                          : current.writeText || row.payload,
-                      statusText: null,
-                      statusKind: "idle",
-                    }));
-                  }}
-                >
-                  {isEditing
-                    ? t("signalDrawer.editor.actions.doneEditing")
-                    : t("signalDrawer.editor.actions.edit")}
-                </button>
-                {isEditing ? (
-                  <button
-                    type="button"
-                    className="signal-row__action-button signal-row__action-button--primary"
-                    onClick={() => {
-                      void handlePublish(row);
-                    }}
-                  >
-                    {t("signalDrawer.editor.actions.publish")}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="signal-row__action-button"
-                  onClick={() => {
-                    handleConsoleLog(row);
-                  }}
-                >
-                  {t("signalDrawer.editor.actions.log")}
-                </button>
-                {isEditing ? (
-                  <button
-                    type="button"
-                    className="signal-row__action-button"
-                    onClick={() => {
-                      handleReset(row);
-                    }}
-                  >
-                    {t("signalDrawer.editor.actions.reset")}
-                  </button>
-                ) : null}
-              </div>
-              {actionState?.statusText ? (
-                <p
-                  className={`signal-row__status signal-row__status--${actionState.statusKind}`}
-                >
-                  {tText(actionState.statusText)}
-                </p>
-              ) : null}
-            </article>
-          );
-        })}
+        {rows.map((row) => (
+          <SignalRow
+            key={row.subject}
+            row={row}
+            actionState={actions[row.subject]}
+            decodedBase64={decodedBase64}
+            onToggleBase64={handleBase64Toggle}
+            onCopyCurrentValue={(targetRow, valueToCopy) => {
+              void handleCopyCurrentValue(targetRow, valueToCopy);
+            }}
+            onFormatJsonToggle={handleFormatJsonToggle}
+            onPublish={(targetRow) => {
+              void handlePublish(targetRow);
+            }}
+            onLog={handleConsoleLog}
+            onReset={handleReset}
+            onUpdateActionState={updateActionState}
+          />
+        ))}
       </div>
     </section>
   );

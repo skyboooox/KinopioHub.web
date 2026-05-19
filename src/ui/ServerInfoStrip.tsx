@@ -1,20 +1,21 @@
-import { useI18n, type LocalizedText } from "../i18n";
-import { StatusPill } from "./StatusPill";
+import type { ServerDiagnosticRow } from "../core/session/useServerDiagnostics";
+import { useI18n } from "../i18n";
 
 type ServerInfoStripProps = {
   status: "connected" | "connecting" | "disconnected" | "error";
   isServerDossierOpen: boolean;
-  activeServerSummary: LocalizedText;
+  servers: ServerDiagnosticRow[];
   onOpenServerDossier: () => void;
 };
 
 export function ServerInfoStrip({
   status,
   isServerDossierOpen,
-  activeServerSummary,
+  servers,
   onOpenServerDossier,
 }: ServerInfoStripProps) {
   const { t, tText } = useI18n();
+  const sessionStateLabel = t(`status.${status}`);
 
   return (
     <section
@@ -28,8 +29,42 @@ export function ServerInfoStrip({
         </div>
 
         <div className="server-info-strip__rail">
-          <StatusPill state={status} />
-          <p className="server-info-strip__line">{tText(activeServerSummary)}</p>
+          <div
+            className="server-info-strip__nodes"
+            aria-label={t("serverOverview.servers")}
+          >
+            {servers.length > 0 ? (
+              servers.map((server) => (
+                <article
+                  className={`server-node server-node--${server.state}`}
+                  key={`${server.identity}-${server.server}`}
+                >
+                  <span
+                    className={`server-node__badge server-node__badge--${server.state} status-pill status-pill--${server.state === "connected" ? "connected" : server.state === "failed" ? "error" : server.state === "probing" ? "connecting" : "disconnected"}`}
+                    title={tText(server.reason)}
+                  >
+                    <span className="status-pill__dot" aria-hidden="true" />
+                    <span className="status-pill__text">
+                      {t(`serverOverview.serverState.${server.state}`)}
+                      {server.rttMs !== undefined ? (
+                        <span className="server-node__latency">
+                          {" "}
+                          {t("serverOverview.serverLatency", { rtt: server.rttMs })}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className="server-node__url" title={server.displayServer}>
+                    {server.displayServer}
+                  </span>
+                </article>
+              ))
+            ) : (
+              <p className="server-info-strip__line">
+                {t("serverOverview.summary.noServer")} / {sessionStateLabel}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="server-info-strip__actions">

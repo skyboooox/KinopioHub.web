@@ -2,6 +2,7 @@
   "chrome": {
     "title": "Kinopio HUB",
     "subjectInput": "Subject",
+    "subjectInputPlaceholder": "scope.variable",
     "a11y": {
       "main": "Kinopio HUB main",
       "appearance": "Appearance controls",
@@ -18,7 +19,6 @@
     }
   },
   "common": {
-    "notAvailable": "None",
     "bytes": "{{count}} bytes",
     "hits": "{{count}} hits",
     "ms": "{{count}} ms",
@@ -49,14 +49,7 @@
   "serverOverview": {
     "eyebrow": "Server",
     "title": "Node",
-    "server": "Server",
-    "status": "Status",
-    "activeServer": "Active server",
-    "meta": "Server info",
-    "profile": "Profile",
     "servers": "Servers",
-    "session": "Session",
-    "monitor": "Monitor",
     "actions": {
       "share": "Share",
       "dossier": "Settings"
@@ -64,19 +57,44 @@
     "summary": {
       "noServer": "No server",
       "moreServers": "{{first}} (+{{count}} more)"
+    },
+    "serverLatency": "{{rtt}}ms",
+    "serverState": {
+      "connected": "connected",
+      "probing": "probing",
+      "reachable": "reachable",
+      "failed": "failed",
+      "standby": "standby"
+    },
+    "serverReason": {
+      "connected": "The current session is connected to this server.",
+      "probing": "Actively probing this server.",
+      "standby": "Session is disconnected; waiting for the next connection or probe.",
+      "reachable": "Probe reached this server with {{rtt}} ms RTT; the current session selected {{active}} via {{mode}} mode.",
+      "reachableNoRtt": "Probe reached this server; the current session selected {{active}} via {{mode}} mode.",
+      "failedTimeout": "Probe timed out: {{message}}",
+      "failedAuth": "Probe was rejected by auth or permissions: {{message}}",
+      "failedTls": "Probe hit a TLS or certificate issue: {{message}}",
+      "failedNetwork": "Probe failed, usually from network, TLS, CORS, or WebSocket reachability: {{message}}",
+      "failedUnknown": "Probe failed for an unknown reason."
     }
   },
   "signalDrawer": {
     "eyebrow": "Signal",
     "title": "Variables",
-    "rawSubject": "Raw subject",
-    "normalized": "Normalized",
-    "mode": "Mode",
     "validationError": "Subject error",
     "emptyTitle": "No live values",
     "emptyBody": "Variables appear here after a matching subject publishes.",
     "invalidEmptyBody": "Fix the subject to resume watching.",
     "rowFacts": "{{time}} / {{hits}} / {{bytes}}",
+    "relative": {
+      "label": "Updated {{time}}",
+      "seconds": "{{count}} sec ago",
+      "minutes": "{{count}} min ago",
+      "hours": "{{count}} hr ago",
+      "days": "{{count}} d ago",
+      "compact": "{{value}} ago"
+    },
     "rowsLabel": "Live value rows",
     "editor": {
       "currentValue": "Current value",
@@ -88,11 +106,14 @@
       "logged": "Logged {{subject}}",
       "reset": "Restored current variable",
       "formatted": "JSON formatted",
+      "copied": "Current value copied",
+      "copyFailed": "Copy failed: {{message}}",
       "actions": {
         "edit": "SET->",
         "doneEditing": "Collapse",
         "publish": "Pub",
         "log": "Console.log",
+        "copy": "Copy",
         "reset": "Reset",
         "formatJson": "Format JSON",
         "decodeBase64": "B64",
@@ -118,7 +139,7 @@
   },
   "requestPanel": {
     "eyebrow": "Request",
-    "title": "Send request",
+    "title": "Request",
     "requestSubject": "Request subject",
     "payloadJson": "Payload JSON",
     "timeout": "Timeout",
@@ -141,8 +162,7 @@
       "requesting": "Requesting {{subject}}",
       "awaiting": "Waiting for responder...",
       "responderError": "Responder returned an error payload",
-      "replyReceived": "Received reply from {{subject}}",
-      "requestFailed": "{{message}}"
+      "replyReceived": "Received reply from {{subject}}"
     },
     "responseBody": {
       "connectFirst": "Connect to Kinopio / NATS to view the latest reply.",
@@ -162,9 +182,6 @@
     "rows": {
       "profile": "Profile",
       "active": "Active",
-      "monitor": "Monitor",
-      "mode": "Mode",
-      "timeout": "Timeout",
       "status": "Status"
     },
     "sessionStatus": "Session",
@@ -177,7 +194,6 @@
       "savedProfile": "Saved Profile",
       "profileName": "Profile name",
       "serverList": "Server list",
-      "monitoringBaseUrl": "Monitor URL",
       "selectionMode": "Selection mode",
       "connectTimeout": "Connect timeout",
       "authMode": "Auth mode",
@@ -195,58 +211,16 @@
     },
     "profileNames": {
       "new": "Profile {{count}}",
+      "demo": "Demo WSS",
       "shared": "Shared link"
     },
-    "monitoringStatus": "Monitor",
-    "monitoringSafety": {
-      "title": "Monitor note",
-      "body": "NATS monitoring is usually unauthenticated. Use only trusted browser-reachable URLs; CORS, TLS, or network errors do not affect websocket."
-    },
-    "monitoringRows": {
-      "serverName": "Server name",
-      "serverId": "Server ID",
-      "version": "Version",
-      "uptime": "Uptime",
-      "healthz": "Health",
-      "connections": "Connections",
-      "subscriptions": "Subscriptions",
-      "inMessages": "In messages",
-      "outMessages": "Out messages",
-      "inBytes": "In bytes",
-      "outBytes": "Out bytes",
-      "slowConsumers": "Slow consumers"
-    },
-    "updatedAt": "Updated {{time}}",
-    "monitoringSummary": {
-      "noVarzUrl": "No Varz URL",
-      "loading": "Reading Varz",
-      "ready": "Varz ready",
-      "error": "Varz error"
-    },
-    "monitoringStatusLabel": {
-      "noUrl": "This Profile has no monitoring URL.",
-      "reading": "Reading {{url}} /varz",
-      "readingWhile": "Reading {{url}} /varz while websocket is {{status}}",
-      "ready": "Read monitoring from {{url}}"
-    }
+    "updatedAt": "Updated {{time}}"
   },
   "shareSheet": {
     "close": "Close",
     "eyebrow": "Share",
     "title": "Restorable link",
-    "includedFields": "Includes",
-    "includedFieldsBody": "servers, monitoring URL, selection mode, watcher subject, request subject, request payload, timeout.",
-    "excluded": {
-      "token": "No Token",
-      "password": "No password",
-      "creds": "No Creds"
-    },
-    "payloadNote": {
-      "title": "Payload note",
-      "body": "Share links include request payload text. Do not include sensitive business data."
-    },
     "shareUrlPreview": "Link",
-    "copyStatus": "Copy status",
     "copyUrl": "Copy",
     "copyHint": "Copy the current restorable link.",
     "copySuccess": "Link copied.",
@@ -293,26 +267,12 @@
       "serversRequired": "Add at least one ws:// or wss:// server.",
       "serversProtocol": "Servers must use ws:// or wss://.",
       "serverInvalid": "Invalid server: {{server}}",
-      "monitorProtocol": "Monitor URLs must use http:// or https://.",
-      "monitorInvalid": "Invalid monitor URL: {{url}}",
       "timeoutMinimum": "Timeout must be at least 1000 ms.",
       "tokenRequired": "Token mode requires a token.",
       "usernameRequired": "User-pass mode requires a username.",
       "passwordRequired": "User-pass mode requires a password.",
       "credsRequired": "Creds mode requires creds content.",
       "credsInvalid": "Creds are missing standard JWT or NKEY sections."
-    },
-    "monitoring": {
-      "monitorProtocol": "Monitor URLs must use http:// or https://.",
-      "monitorInvalid": "Invalid monitor URL: {{url}}",
-      "httpError": "Monitor endpoint returned HTTP {{status}} {{statusText}}",
-      "invalidJson": "Monitoring /varz did not return valid JSON.",
-      "unexpectedPayload": "Monitoring /varz returned an unexpected payload.",
-      "healthOptional": "Healthz is optional and returned no healthy response.",
-      "healthUnavailable": "Healthz is unavailable; /varz may still work.",
-      "cancelled": "Monitoring request was cancelled.",
-      "fetchFailed": "Browser cannot reach monitoring, usually due to CORS, TLS, or network access.",
-      "unknownFailure": "Monitoring failed for an unknown reason."
     },
     "clipboard": {
       "apiUnavailable": "Clipboard API is unavailable here.",

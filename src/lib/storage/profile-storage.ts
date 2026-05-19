@@ -1,6 +1,4 @@
 import {
-  DEFAULT_KINOPIO_SERVERS,
-  DEFAULT_MONITOR_URL,
   createDefaultServerProfile,
   sanitizePersistedProfile,
   type KinopioServerProfile,
@@ -17,17 +15,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function inferMonitorUrl(servers: string[]): string {
-  if (
-    servers.length === DEFAULT_KINOPIO_SERVERS.length &&
-    servers.every((server, index) => server === DEFAULT_KINOPIO_SERVERS[index])
-  ) {
-    return DEFAULT_MONITOR_URL;
-  }
-
-  return "";
-}
-
 function parsePersistedProfile(value: unknown): KinopioServerProfile | null {
   if (!isObject(value)) {
     return null;
@@ -39,10 +26,6 @@ function parsePersistedProfile(value: unknown): KinopioServerProfile | null {
   const servers = Array.isArray(profile.servers)
     ? profile.servers.filter((item): item is string => typeof item === "string")
     : [];
-  const monitorUrl =
-    typeof profile.monitorUrl === "string"
-      ? profile.monitorUrl
-      : inferMonitorUrl(servers);
   const serverSelectionMode =
     profile.serverSelectionMode === "ordered" ||
     profile.serverSelectionMode === "random" ||
@@ -64,7 +47,6 @@ function parsePersistedProfile(value: unknown): KinopioServerProfile | null {
     id,
     name,
     servers,
-    monitorUrl,
     serverSelectionMode,
     timeoutMs,
     rememberAuth,
@@ -136,6 +118,7 @@ export function loadPersistedProfileState(): PersistedProfileState {
   }
 }
 
+// `rememberAuth` is a convenience to keep auth locally; localStorage is plaintext and has no encryption model.
 export function persistProfileState(
   profiles: KinopioServerProfile[],
   selectedProfileId: string,

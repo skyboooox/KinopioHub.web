@@ -1,4 +1,10 @@
 import { msg, type LocalizedText } from "../../i18n";
+import {
+  splitDotSubject,
+  validateNatsSubjectTokens,
+} from "../nats-subject/subject-parsing";
+import { redactSensitiveConnectionText } from "../error-redactor";
+import { parseJsonText, stringifyJsonValue } from "../text/json";
 
 export interface RequestSubjectResolution {
   rawInput: string;
@@ -33,27 +39,16 @@ export interface RequestDraftResolution {
   canSend: boolean;
 }
 
-function splitSubject(subject: string) {
-  const separatorIndex = subject.indexOf(".");
-
-  if (separatorIndex === -1) {
-    return null;
-  }
-
-  return {
-    scopeName: subject.slice(0, separatorIndex),
-    variableName: subject.slice(separatorIndex + 1),
-  };
-}
-
 function validateExactSubject(subject: string): LocalizedText | null {
-  const tokens = subject.split(".");
+  const tokenFailure = validateNatsSubjectTokens(subject, {
+    allowWildcard: false,
+  });
 
-  if (tokens.some((token) => token.length === 0)) {
+  if (tokenFailure === "empty-token") {
     return msg("errors.request.subjectEmptyTokens");
   }
 
-  if (tokens.some((token) => token.includes("*") || token.includes(">"))) {
+  if (tokenFailure) {
     return msg("errors.request.subjectNoWildcard");
   }
 
@@ -86,7 +81,7 @@ export function resolveRequestSubjectInput(
     };
   }
 
-  const subjectParts = splitSubject(trimmedInput);
+  const subjectParts = splitDotSubject(trimmedInput);
 
   if (!subjectParts) {
     return {
@@ -118,19 +113,21 @@ export function resolveRequestPayloadText(payloadText: string): RequestPayloadRe
     };
   }
 
-  try {
+  const parsedPayload = parseJsonText(trimmedPayload);
+
+  if (parsedPayload.ok) {
     return {
-      payload: JSON.parse(trimmedPayload) as unknown,
+      payload: parsedPayload.value,
       hasPayload: true,
       errorMessage: null,
     };
-  } catch {
-    return {
-      payload: undefined,
-      hasPayload: true,
-      errorMessage: msg("errors.request.payloadInvalid"),
-    };
   }
+
+  return {
+    payload: undefined,
+    hasPayload: true,
+    errorMessage: msg("errors.request.payloadInvalid"),
+  };
 }
 
 export function resolveRequestTimeoutInput(timeoutText: string): RequestTimeoutResolution {
@@ -191,7 +188,7 @@ export function formatStructuredValue(value: unknown): LocalizedText {
     typeof value === "boolean" ||
     value === null
   ) {
-    return JSON.stringify(value);
+    return stringifyJsonValue(value);
   }
 
   if (value === undefined) {
@@ -199,7 +196,7 @@ export function formatStructuredValue(value: unknown): LocalizedText {
   }
 
   try {
-    return JSON.stringify(value, null, 2);
+    return stringifyJsonValue(value, 2);
   } catch {
     return String(value);
   }
@@ -243,11 +240,11 @@ export function formatRequestError(error: unknown): LocalizedText {
       return msg("errors.request.noResponder");
     }
 
-    return error.message.trim();
+    return redactSensitiveConnectionText(error.message.trim());
   }
 
   if (typeof error === "string" && error.trim()) {
-    return error.trim();
+    return redactSensitiveConnectionText(error.trim());
   }
 
   return msg("errors.request.unknownFailure");

@@ -10,7 +10,7 @@ export function StatusPill({ state }: StatusPillProps) {
   return (
     <span className={`status-pill status-pill--${state}`}>
       <span className="status-pill__dot" aria-hidden="true" />
-      {t(`status.${state}`)}
+      <span className="status-pill__text">{t(`status.${state}`)}</span>
     </span>
   );
 }

@@ -21,7 +21,6 @@ export interface KinopioServerProfile {
   id: string;
   name: string;
   servers: string[];
-  monitorUrl: string;
   serverSelectionMode: ServerSelectionMode;
   timeoutMs: number;
   auth: KinopioAuthConfig;
@@ -32,7 +31,6 @@ export interface KinopioServerProfileDraft {
   profileId: string;
   profileName: string;
   serversText: string;
-  monitorUrlText: string;
   serverSelectionMode: ServerSelectionMode;
   timeoutMsText: string;
   authMode: KinopioAuthMode;
@@ -48,7 +46,6 @@ export interface KinopioServerProfileValidation {
   errors: {
     profileName?: LocalizedText;
     servers?: LocalizedText;
-    monitorUrl?: LocalizedText;
     timeoutMs?: LocalizedText;
     token?: LocalizedText;
     username?: LocalizedText;
@@ -61,7 +58,6 @@ export const DEFAULT_KINOPIO_SERVERS = [
   "wss://demo.nats.io:8443",
   "wss://demo.nats.io:4443",
 ];
-export const DEFAULT_MONITOR_URL = "https://demo.nats.io:8222";
 
 export const DEFAULT_SERVER_SELECTION_MODE: ServerSelectionMode = "latency";
 export const DEFAULT_TIMEOUT_MS = 4000;
@@ -100,7 +96,6 @@ export function createDefaultServerProfile(): KinopioServerProfile {
     id: createProfileId(),
     name: "Demo WSS",
     servers: [...DEFAULT_KINOPIO_SERVERS],
-    monitorUrl: DEFAULT_MONITOR_URL,
     serverSelectionMode: DEFAULT_SERVER_SELECTION_MODE,
     timeoutMs: DEFAULT_TIMEOUT_MS,
     auth: createEmptyAuthConfig(),
@@ -115,7 +110,6 @@ export function createServerProfileDraft(
     profileId: profile.id,
     profileName: profile.name,
     serversText: profile.servers.join("\n"),
-    monitorUrlText: profile.monitorUrl,
     serverSelectionMode: profile.serverSelectionMode,
     timeoutMsText: String(profile.timeoutMs),
     authMode: profile.auth.mode,
@@ -176,18 +170,6 @@ export function validateServerProfileDraft(
     }
   }
 
-  const monitorUrl = draft.monitorUrlText.trim().replace(/\/+$/, "");
-  if (monitorUrl) {
-    try {
-      const parsedUrl = new URL(monitorUrl);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        errors.monitorUrl = msg("errors.profile.monitorProtocol");
-      }
-    } catch {
-      errors.monitorUrl = msg("errors.profile.monitorInvalid", { url: monitorUrl });
-    }
-  }
-
   const timeoutMs = Number(draft.timeoutMsText);
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
     errors.timeoutMs = msg("errors.profile.timeoutMinimum");
@@ -222,7 +204,6 @@ export function validateServerProfileDraft(
   if (
     errors.profileName ||
     errors.servers ||
-    errors.monitorUrl ||
     errors.timeoutMs ||
     errors.token ||
     errors.username ||
@@ -240,7 +221,6 @@ export function validateServerProfileDraft(
       id: draft.profileId,
       name: profileName,
       servers: parsedServers,
-      monitorUrl,
       serverSelectionMode: draft.serverSelectionMode,
       timeoutMs,
       auth: {
@@ -282,7 +262,6 @@ export function serverProfilesEqual(
   return (
     left.id === right.id &&
     left.name === right.name &&
-    left.monitorUrl === right.monitorUrl &&
     left.serverSelectionMode === right.serverSelectionMode &&
     left.timeoutMs === right.timeoutMs &&
     left.rememberAuth === right.rememberAuth &&

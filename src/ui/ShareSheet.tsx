@@ -36,9 +36,10 @@ export function ShareSheet({
           type="button"
           className="server-dossier-dialog__close"
           aria-label={t("shareSheet.close")}
+          title={t("shareSheet.close")}
           onClick={onClose}
         >
-          {t("shareSheet.close")}
+          X
         </button>
 
         <div className="panel__header">

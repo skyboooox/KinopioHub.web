@@ -1,23 +1,19 @@
 # KinopioHub.web
 
-KinopioHub.web 是一个浏览器端的 Kinopio / NATS 实时变量观察工具。
+KinopioHub.web 是浏览器端 Kinopio / NATS 调试台，支持：
 
-当前已完成阶段 1 到阶段 8：
+- 连接多条 `wss` / `tls` 服务器（默认内置 demo server），连接模式（ordered / random / latency）可选。
+- 输入 subject 并校验通配符规则，展示实际订阅（如 `a.b.c` 会变为 `a.b.c.>`）。
+- 监听 latest value，显示每个命中 subject 的最近消息与更新次数。
+- request-reply 支持精确 subject、可选 JSON payload、可调 timeout，并展示最近响应或错误。
+- 多 profile 管理、服务器列表/模式/session timeout 的本地保存与恢复，`remember auth` 仅存本地（localStorage）。
+- 分享链接恢复非敏感配置（servers / selection mode / timeout / watch subject / request subject / request payload / request timeout text）。
+- 中文 / 英文切换、深色 / 浅色主题持久化。
 
-- Vite + React + TypeScript 工程基线
-- 浏览器端 Kinopio 连接核心
-- 默认 demo WSS、手动 servers 列表与连接生命周期控制
-- 多 profile、认证模式、本地保存与清除本地保存
-- subject 归一化、wildcard 校验、latest value 实时观察
-- request subject / payload / timeout 校验与真实 request-reply 响应展示
-- NATS monitoring `/varz` 基本信息展示与降级提示
-- 分享 URL 复制、恢复与本地认证协同提示
-- 黑黄高反差工业风重构
-- 暗色 / 亮色切换、本地 UI 偏好持久化
-- `zh-CN / EN` JSON 词条多语言与本地化时间数字格式
-- 开发、类型检查、构建命令
+安全约束：
 
-当前页面已经会尝试连接 `kinopio-hub` 默认 demo WSS，并允许手动修改 server 列表、连接模式、连接超时和认证参数。服务器 profile 与可选认证信息可保存到浏览器本地，也支持一键清空并恢复到干净默认配置。subject 输入会自动做 `.>` 归一化、wildcard 合法性校验，并把命中的实际子 subject 以 latest value 方式实时展示。request 面板会校验精确 request subject、可选 JSON payload 和 timeout，并通过 `Variable.req()` 显示最近一次成功响应或错误。分享 URL 可以恢复非敏感配置；认证信息不会进入分享状态。页面支持暗色 / 亮色切换，以及中文 / 英文界面切换，两者都保存在浏览器本地，且不进入 share URL。
+- 分享 URL 不包含 `token`、`password`、`creds`。
+- 认证信息仅用于本地使用，不作为安全凭证保存在 URL 中。
 
 ## 开发
 
@@ -26,23 +22,62 @@ npm install
 npm run dev
 ```
 
+默认访问：`http://localhost:5173`
+
 ## 验证
 
 ```bash
 npm run typecheck
 npm run build
+npm run preview
 ```
+
+## 部署到 MushroomKingdom
+
+仓库提供基于官方 `caddy` 容器的静态部署配置，入口位于 `deploy/mushroomkingdom/`。
+
+- HTTPS：`https://hub.skyboooox.com:7800`
+- HTTP：`http://hub.skyboooox.com:7801`
+- `deploy/mushroomkingdom/conf/Caddyfile` 中配置了：
+  - `try_files {path} /index.html`（SPA fallback）
+  - `/assets/*` 长期缓存
+  - `index.html` 禁用长期缓存
+
+本地构建并同步静态文件：
+
+```bash
+ssh MushroomKingdom 'mkdir -p /root/KinopioHub.web/conf /root/KinopioHub.web/dist'
+npm install
+npm run build
+rsync -az --delete ./dist/ MushroomKingdom:/root/KinopioHub.web/dist/
+rsync -az ./deploy/mushroomkingdom/conf/ MushroomKingdom:/root/KinopioHub.web/conf/
+rsync -az ./deploy/mushroomkingdom/compose.yaml MushroomKingdom:/root/KinopioHub.web/compose.yaml
+```
+
+服务端启动：
+
+```bash
+ssh MushroomKingdom 'cd /root/KinopioHub.web && docker compose up -d'
+```
+
+默认暴露：
+
+- HTTPS：`https://hub.skyboooox.com:7800`
+- HTTP：`http://hub.skyboooox.com:7801`
+
+证书复用服务器现有文件：
+
+- `/root/NATS/cert.pem`
+- `/root/NATS/key.key`
 
 ## 结构
 
 - `src/App.tsx`: 页面装配、profile 草稿与本地保存编排
 - `src/i18n/`: JSON 词条、翻译解析和 locale context
-- `src/core/monitoring/`: monitoring 拉取与状态编排
 - `src/core/watch/`: subject 订阅与 latest-value 状态
 - `src/core/session/`: Kinopio 连接生命周期
 - `src/core/request/`: request-reply 状态与发送编排
 - `src/lib/kinopio/`: server profile 解析和 client 封装
-- `src/lib/monitoring/`: `/varz` 读取、格式化和错误整理
 - `src/lib/nats-subject/`: subject 归一化与 wildcard 校验
 - `src/lib/request/`: request subject、payload、timeout 校验与响应格式化
 - `src/lib/storage/`: localStorage 持久化

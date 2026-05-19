@@ -3,7 +3,6 @@ import type { KinopioState } from "kinopio-hub";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
-  formatDateTime,
   msg,
   translate,
   type LocaleCode,
@@ -11,6 +10,8 @@ import {
 } from "../../i18n";
 import { createKinopioClient, formatKinopioError } from "../../lib/kinopio/client";
 import type { KinopioServerProfile } from "../../lib/kinopio/server-profile";
+import { normalizeServerIdentity } from "../../lib/kinopio/server-identity";
+import { createClockTimestamp } from "../../lib/time/timestamp";
 
 export interface KinopioSessionControl {
   revision: number;
@@ -22,16 +23,22 @@ export interface KinopioSessionSnapshot {
   errorMessage: LocalizedText | null;
   lastEventAt: string | null;
   lastEventLabel: LocalizedText;
+  connectedServer: string | null;
   hubRef: MutableRefObject<KinopioHub | null>;
 }
 
-function createTimestamp(locale: LocaleCode): string {
-  return formatDateTime(locale, new Date(), {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+type KinopioHubWithNats = KinopioHub & {
+  nats?: {
+    getServer?: () => string;
+  };
+};
+
+function readConnectedServer(hub: KinopioHub | null): string | null {
+  try {
+    return normalizeServerIdentity((hub as KinopioHubWithNats | null)?.nats?.getServer?.());
+  } catch {
+    return null;
+  }
 }
 
 export function useKinopioSession(
@@ -50,6 +57,7 @@ export function useKinopioSession(
       ? msg("session.opening")
       : msg("session.disconnected"),
   );
+  const [connectedServer, setConnectedServer] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,13 +74,18 @@ export function useKinopioSession(
       setStatus(nextStatus);
       setLastEventLabel(nextLabel);
       setErrorMessage(nextErrorMessage);
-      setLastEventAt(createTimestamp(locale));
+      setLastEventAt(createClockTimestamp(locale));
+      if (nextStatus !== "connected") {
+        setConnectedServer(null);
+      }
     };
 
     void (async () => {
       const previousHub = hubRef.current;
       hubRef.current = null;
 
+      // Recreate hub only after tearing down the previous one, so strict-mode re-runs
+      // and rapid control changes do not leave duplicate active connections.
       if (previousHub) {
         await previousHub.dispose().catch(() => {});
       }
@@ -109,6 +122,7 @@ export function useKinopioSession(
           return;
         }
 
+        setConnectedServer(readConnectedServer(hub));
         updateSnapshot(
           "connected",
           msg("session.connectedUsingMode", {
@@ -131,17 +145,39 @@ export function useKinopioSession(
       cancelled = true;
       const currentHub = hubRef.current;
       hubRef.current = null;
+      // Ensure the active hub is disposed from effect cleanup before it is replaced.
       if (currentHub) {
         void currentHub.dispose().catch(() => {});
       }
     };
   }, [control.revision, control.shouldConnect, locale, profile]);
 
+  useEffect(() => {
+    if (status !== "connected") {
+      setConnectedServer(null);
+      return;
+    }
+
+    const syncConnectedServer = () => {
+      const nextServer = readConnectedServer(hubRef.current);
+      setConnectedServer((current) => (current === nextServer ? current : nextServer));
+    };
+
+    syncConnectedServer();
+    // Keep connected server display fresh while connection may migrate between cluster servers.
+    const timer = window.setInterval(syncConnectedServer, 1500);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [control.revision, status]);
+
   return {
     status,
     errorMessage,
     lastEventAt,
     lastEventLabel,
+    connectedServer,
     hubRef,
   };
 }

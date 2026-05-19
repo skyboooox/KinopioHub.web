@@ -3,6 +3,10 @@ import type {
   KinopioServerProfile,
 } from "../kinopio/server-profile";
 import {
+  decodeBase64UrlText,
+  encodeBase64UrlText,
+} from "../text/base64";
+import {
   DEFAULT_LOCALE,
   msg,
   translate,
@@ -10,6 +14,7 @@ import {
   type LocalizedText,
 } from "../../i18n";
 
+// share payload is serialized into query string; this version is used to reject unknown formats safely.
 const SHARE_QUERY_KEY = "share";
 const SHARE_SCHEMA_VERSION = 1;
 const SHARED_PROFILE_ID = "shared-url-profile";
@@ -17,7 +22,6 @@ const SHARED_PROFILE_ID = "shared-url-profile";
 export interface ShareStateV1 {
   version: 1;
   servers: string[];
-  monitorUrl: string;
   serverSelectionMode: KinopioServerProfile["serverSelectionMode"];
   timeoutMs: number;
   watchSubject: string;
@@ -39,30 +43,6 @@ function createEmptyAuthConfig(): KinopioAuthConfig {
     password: "",
     creds: "",
   };
-}
-
-function encodeBase64Url(value: string): string {
-  const utf8Bytes = new TextEncoder().encode(value);
-  let binary = "";
-
-  for (const byte of utf8Bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function decodeBase64Url(value: string): string {
-  const normalizedValue = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = normalizedValue.length % 4;
-  const paddedValue =
-    padding === 0
-      ? normalizedValue
-      : `${normalizedValue}${"=".repeat(4 - padding)}`;
-  const binary = atob(paddedValue);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-
-  return new TextDecoder().decode(bytes);
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {
@@ -113,7 +93,6 @@ function parseShareState(payload: unknown): ShareStateV1 {
   return {
     version: SHARE_SCHEMA_VERSION,
     servers,
-    monitorUrl: readString(objectValue.monitorUrl).trim(),
     serverSelectionMode,
     timeoutMs,
     watchSubject: readString(objectValue.watchSubject),
@@ -134,7 +113,6 @@ export function createShareState(input: {
   return {
     version: SHARE_SCHEMA_VERSION,
     servers: [...input.appliedProfile.servers],
-    monitorUrl: input.appliedProfile.monitorUrl,
     serverSelectionMode: input.appliedProfile.serverSelectionMode,
     timeoutMs: input.appliedProfile.timeoutMs,
     watchSubject: input.watchSubject,
@@ -148,7 +126,7 @@ export function buildShareUrl(shareState: ShareStateV1): string {
   const url = new URL(window.location.href);
   url.searchParams.set(
     SHARE_QUERY_KEY,
-    encodeBase64Url(JSON.stringify(shareState)),
+    encodeBase64UrlText(JSON.stringify(shareState)),
   );
   return url.toString();
 }
@@ -172,7 +150,7 @@ export function loadShareStateFromLocation(): ShareStateLoadResult {
       };
     }
 
-    const decodedPayload = decodeBase64Url(encodedShareState);
+    const decodedPayload = decodeBase64UrlText(encodedShareState);
     return {
       shareState: parseShareState(JSON.parse(decodedPayload) as unknown),
       errorMessage: null,
@@ -195,6 +173,7 @@ export function loadShareStateFromLocation(): ShareStateLoadResult {
   }
 }
 
+// URL share intentionally never rehydrates sensitive auth; it only restores topology and UI state.
 export function createSharedProfile(
   shareState: ShareStateV1,
   locale: LocaleCode = DEFAULT_LOCALE,
@@ -203,7 +182,6 @@ export function createSharedProfile(
     id: SHARED_PROFILE_ID,
     name: translate(locale, "serverDossier.profileNames.shared"),
     servers: [...shareState.servers],
-    monitorUrl: shareState.monitorUrl,
     serverSelectionMode: shareState.serverSelectionMode,
     timeoutMs: shareState.timeoutMs,
     auth: createEmptyAuthConfig(),
@@ -227,7 +205,6 @@ export function matchSavedProfileToShareState(
 
       return (
         hasRememberedAuth &&
-        profile.monitorUrl === shareState.monitorUrl &&
         profile.serverSelectionMode === shareState.serverSelectionMode &&
         profile.timeoutMs === shareState.timeoutMs &&
         profile.servers.length === shareState.servers.length &&

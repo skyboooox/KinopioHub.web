@@ -2,6 +2,7 @@ import { credsAuthenticator, type ConnectionOptions } from "@nats-io/nats-core";
 import KinopioHub from "kinopio-hub";
 import { msg, type LocalizedText } from "../../i18n";
 import type { KinopioServerProfile } from "./server-profile";
+import { redactSensitiveConnectionText } from "../error-redactor";
 
 type KinopioRuntimeOptions = NonNullable<
   ConstructorParameters<typeof KinopioHub>[0]
@@ -17,31 +18,41 @@ function createCredsAuthenticator(creds: string) {
 export function buildKinopioRuntimeOptions(
   profile: KinopioServerProfile,
 ): KinopioRuntimeOptions {
-  const runtimeOptions: KinopioRuntimeOptions = {
+  return {
+    ...buildKinopioConnectionOptions(profile),
+    servers: profile.servers,
     autoConnect: false,
     autoRetry: false,
-    servers: profile.servers,
     serverSelectionMode: profile.serverSelectionMode,
-    timeout: profile.timeoutMs,
   };
+}
+
+export function buildKinopioConnectionOptions(
+  profile: KinopioServerProfile,
+): ConnectionOptions & Pick<ConnectionOptions, "authenticator" | "pass" | "token" | "user"> {
+  const connectionOptions: ConnectionOptions &
+    Pick<ConnectionOptions, "authenticator" | "pass" | "token" | "user"> = {
+      servers: profile.servers,
+      timeout: profile.timeoutMs,
+    };
 
   switch (profile.auth.mode) {
     case "token":
-      runtimeOptions.token = profile.auth.token;
+      connectionOptions.token = profile.auth.token;
       break;
     case "user-pass":
-      runtimeOptions.user = profile.auth.username;
-      runtimeOptions.pass = profile.auth.password;
+      connectionOptions.user = profile.auth.username;
+      connectionOptions.pass = profile.auth.password;
       break;
     case "creds":
-      runtimeOptions.authenticator = createCredsAuthenticator(profile.auth.creds);
+      connectionOptions.authenticator = createCredsAuthenticator(profile.auth.creds);
       break;
     case "none":
     default:
       break;
   }
 
-  return runtimeOptions;
+  return connectionOptions;
 }
 
 export function createKinopioClient(profile: KinopioServerProfile): KinopioHub {
@@ -50,11 +61,11 @@ export function createKinopioClient(profile: KinopioServerProfile): KinopioHub {
 
 export function formatKinopioError(error: unknown): LocalizedText {
   if (error instanceof Error && error.message.trim()) {
-    return error.message;
+    return redactSensitiveConnectionText(error.message.trim());
   }
 
   if (typeof error === "string" && error.trim()) {
-    return error;
+    return redactSensitiveConnectionText(error.trim());
   }
 
   return msg("session.unknownConnectionError");

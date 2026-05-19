@@ -1,0 +1,27 @@
+{
+	auto_https disable_redirects
+}
+
+https://hub.skyboooox.com:7800 {
+	tls /certs/cert.pem /certs/key.key
+
+	root * /srv
+	encode zstd gzip
+	try_files {path} /index.html
+	file_server
+
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "public, max-age=0, must-revalidate"
+}
+
+http://hub.skyboooox.com:7801 {
+	root * /srv
+	encode zstd gzip
+	try_files {path} /index.html
+	file_server
+
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "public, max-age=0, must-revalidate"
+}

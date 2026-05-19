@@ -2,15 +2,7 @@ import type KinopioHub from "kinopio-hub";
 import type { KinopioState } from "kinopio-hub";
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  formatDateTime,
-  formatNumber,
-  msg,
-  resolveText,
-  translate,
-  type LocaleCode,
-  type LocalizedText,
-} from "../../i18n";
+import { formatNumber, msg, resolveText, translate, type LocaleCode, type LocalizedText } from "../../i18n";
 import {
   detectReplyErrorMessage,
   formatRequestError,
@@ -18,6 +10,7 @@ import {
   resolveRequestDraft,
   type RequestDraft,
 } from "../../lib/request/request-config";
+import { createClockTimestamp } from "../../lib/time/timestamp";
 
 type RequestReplyStatus = "idle" | "sending" | "success" | "error";
 
@@ -43,15 +36,6 @@ export interface RequestReplySnapshot {
   buttonLabel: LocalizedText;
   sendRequest: () => Promise<void>;
   clearResult: () => void;
-}
-
-function createTimestamp(locale: LocaleCode): string {
-  return formatDateTime(locale, new Date(), {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
 }
 
 function createIdleResponse(sessionStatus: KinopioState): RequestReplyResultState {
@@ -129,7 +113,7 @@ export function useRequestReply(
     requestIdRef.current = currentRequestId;
 
     const requestStartedAt = Date.now();
-    const requestStartedLabel = createTimestamp(locale);
+    const requestStartedLabel = createClockTimestamp(locale);
 
     setResult({
       status: "sending",
@@ -146,6 +130,7 @@ export function useRequestReply(
       errorMessage: null,
     });
 
+    // request-reply scope is scoped to this call; always dispose in finally, including timeout/failure paths.
     const scope = hub.getScope(resolution.subject.scopeName);
 
     try {
@@ -182,7 +167,7 @@ export function useRequestReply(
           bytes: translate(locale, "common.bytes", {
             count: formatNumber(locale, responseBytes),
           }),
-          time: createTimestamp(locale),
+          time: createClockTimestamp(locale),
         }),
         errorMessage: responseError,
       });
@@ -202,7 +187,7 @@ export function useRequestReply(
           duration: translate(locale, "common.ms", {
             count: formatNumber(locale, responseDuration),
           }),
-          time: createTimestamp(locale),
+          time: createClockTimestamp(locale),
         }),
         errorMessage: formattedError,
       });

@@ -1,815 +1,492 @@
-# KinopioHub.web 分阶段实施计划
+# KinopioHub.web 上线前整合计划
 
-## 0. 项目目标
+## 0. 计划目标
 
-KinopioHub.web 是一个从 0 开始的浏览器端实时变量观察工具，目标是在 Web 页面中连接 Kinopio / NATS 服务，按 subject 查看变量最新值，并提供 request-reply 的请求入口。
+本计划用于把当前接近上线的 KinopioHub.web 做一次完整整合，范围包含：
 
-首版核心能力：
+- 清理无用代码、生成物、系统文件、过期结构。
+- 整理 README、DESIGN、部署说明、公开行为描述。
+- 添加必要注释，只解释安全边界、协议规则、非显然运行时约束。
+- 补齐上线前最小验证矩阵。
 
-- 右上角提供 subject 输入框。
-- 用户输入普通 subject 时，自动订阅所有子层。例如输入 `a.b.c` 时，归一化为 `a.b.c.>`。
-- 如果用户已经输入 NATS wildcard，则尊重用户输入并做合法性校验。
-- 只显示每个命中 subject 的最新值，不做历史列表。
-- 默认使用 `kinopio-hub` 的 demo WSS 服务器，同时允许用户手动填写 servers 列表。
-- 在 Web 中显示 NATS 服务器基本信息。
-- 支持填写认证信息，并保存到浏览器本地，方便下次快速填入。
-- 支持 request-reply：向指定 subject 发送请求并显示响应。
-- 支持复制分享 URL；打开分享 URL 后恢复服务器设置、subject、request 配置等非敏感状态。
+当前阶段：H（最终验收与发布准备）。
+
+- 已完成：A、B、C、D、E、F、G
+- 进行中：H
+  - 已跑：`npm run typecheck`、`npm run build`、`npm run preview`（根路径与 `/?share=` 探活）、`npm audit --omit=dev`
+  - 已补：本地 preview 行为复核、远端 `MushroomKingdom` 部署复核（7800/7801、share 直开、SPA fallback、缓存头）
+  - 已补：代码结构复查，集中 subject 校验、JSON/Base64/clipboard 工具，并拆出 `SignalRow`、`JsonTree`
+  - 待补：浏览器手工验收场景（连接/subject/request/share 全链路）、`package-lock.json` 及字体策略最终决策
+- 未开始：无
+
+注：文档工作只记录实施状态与交付边界，不替代代码实现判断。
+
+## 1. 当前仓库快照
+
+已读事实：
+
+- 技术栈：Vite + React + TypeScript。
+- 包管理：根目录存在 `package.json` 和 `package-lock.json`。
+- 脚本：`npm run dev`、`npm run typecheck`、`npm run build`、`npm run preview`。
+- 核心依赖：`kinopio-hub`、`react`、`react-dom`、`skyboxtool`、`@fontsource/ibm-plex-mono`。
+- 入口：`index.html`、`src/main.tsx`、`src/App.tsx`。
+- 核心模块：`src/core/session`、`src/core/watch`、`src/core/request`。
+- 底层模块：`src/lib/kinopio`、`src/lib/nats-subject`、`src/lib/request`、`src/lib/share`、`src/lib/storage`、`src/lib/text`、`src/lib/browser`。
+- UI 模块：`src/ui/CommandRail.tsx`、`src/ui/ServerInfoStrip.tsx`、`src/ui/ServerDossier.tsx`、`src/ui/SignalDrawer.tsx`、`src/ui/SignalRow.tsx`、`src/ui/JsonTree.tsx`、`src/ui/RequestPanel.tsx`、`src/ui/ShareSheet.tsx`、`src/ui/StatusPill.tsx`。
+- 样式：`src/styles/tokens.css`、`base.css`、`layout.css`、`components.css`。
+- 多语言：`src/i18n/locales/zh-CN.json`、`src/i18n/locales/en.json`。
+- 部署：`deploy/mushroomkingdom/compose.yaml`、`deploy/mushroomkingdom/conf/Caddyfile`。
+- 已归档旧计划：`archive/PLAN-2026-05-18.md`。
+
+已发现的整合候选：
+
+- `PLAN.md` 已存在并作为本次整合的主线记录。
+- 存在 `.DS_Store`：根目录、`UI_ Refer_img/`、`public/`、`public/fonts/`。
+- 存在 TypeScript build cache：`tsconfig.app.tsbuildinfo`、`tsconfig.node.tsbuildinfo`。
+- `.gitignore` 已忽略 `*.tsbuildinfo`、`.DS_Store`、`package-lock.json`，但这些文件仍出现在工作区；实施时需要用 `git status --ignored` 判断是否已被跟踪。
+- 代码热点较大：`src/styles/components.css` 约 2176 行，`src/ui/SignalDrawer.tsx` 约 728 行，`src/App.tsx` 约 594 行，`src/ui/ServerDossier.tsx` 约 398 行。
+- 当前没有测试脚本、lint 脚本、format 脚本；上线前验证主要依赖 typecheck、build、浏览器手测和真实 NATS/Kinopio 行为验证。
+
+## 2. 全局约束
+
+- 实施前必须先看 `git status --short --ignored`，保护已有未提交改动。
+- 不改授权范围外文件；如果用户只授权某个文件，严格只写该文件。
+- 不重写历史、不强推、不删除用户数据、不清空本地存储或远端部署目录，除非用户明确授权。
+- 不新增生产依赖，除非该阶段明确说明原因、替代方案、影响面和回滚方式。
+- 清理必须可回滚：每阶段保持小 diff，不把功能重构、视觉调整、格式化、文档重写混在一个提交。
+- 保留当前产品核心能力：连接 Kinopio/NATS、profile/localStorage、watch latest value、request-reply、share URL、主题、多语言、MushroomKingdom 静态部署。
+- share URL 继续禁止携带 token、password、creds。
+- localStorage 认证保存继续作为本地便利能力，不描述成加密保险箱。
+- UI 继续遵循 `DESIGN.md` 的黑黄工业图纸方向，不改成通用 SaaS 风格。
+
+## 3. 阶段 A：上线基线冻结
+
+目标：
+
+- 确认当前上线候选状态、未提交改动、可验证命令和不可动边界。
+
+范围：
+
+- 只读检查仓库状态、包脚本、部署配置、公开文档。
+- 不修改源码。
+
+交付物：
+
+- 一份基线记录：当前分支、未提交文件、忽略文件、可运行脚本、部署入口、已知风险。
+- 明确后续阶段是否需要拆提交。
+
+必要检查：
+
+```bash
+git status --short --ignored
+npm run typecheck
+npm run build
+```
+
+通过标准：
+
+- 清楚区分已跟踪改动、未跟踪文件、被忽略生成物。
+- `typecheck` 和 `build` 的当前结果被记录。
+- 发现失败时先记录失败，不进入清理阶段盲改。
+
+风险与回滚：
+
+- 此阶段只读，无代码回滚风险。
+- 如果发现大量未提交改动，先和用户确认是否全部纳入本次整合。
+
+## 4. 阶段 B：无用文件与生成物清理
+
+目标：
+
+- 移除不应进入上线交付的系统文件、缓存文件、过期计划残留和无用资产。
+
+范围内候选：
+
+- `.DS_Store`
+- `UI_ Refer_img/.DS_Store`
+- `public/.DS_Store`
+- `public/fonts/.DS_Store`
+- `tsconfig.app.tsbuildinfo`
+- `tsconfig.node.tsbuildinfo`
+- 其他 `*.log`、`*.tmp`、`*.bak`、`*.old`
+
+需要谨慎确认的候选：
+
+- `package-lock.json`：当前 `.gitignore` 忽略它，但项目使用 npm 命令。实施时必须确认它是否已跟踪，以及仓库是否要保留锁文件。接近上线时通常建议保留锁文件并移出 `.gitignore`，但如果用户明确不提交锁文件，则保持现状。
+- `archive/PLAN-2026-05-18.md`：它是历史计划，不默认删除。只有在 README/DESIGN 已覆盖有效内容且用户同意归档策略时再处理。
+- `UI_ Refer_img/`：设计来源仍被 `DESIGN.md` 引用，不默认删除。
+- `public/fonts/HYFengShangHei-45W.ttf`：当前 `base.css` 未声明 45W 字重。实施时确认是否实际被 CSS 或浏览器字体回退使用，再决定删除或补声明。
+
+交付物：
+
+- 删除明确无用的系统文件和生成缓存。
+- 调整 `.gitignore` 与实际包管理策略一致。
+- 保留有设计、部署或运行价值的资产。
+
+验证：
+
+```bash
+git status --short --ignored
+npm run typecheck
+npm run build
+```
+
+通过标准：
+
+- 工作区不再出现应忽略的系统文件和 TypeScript cache。
+- 包管理策略明确：要么提交锁文件，要么文档说明不使用锁文件。
+- 构建输出不依赖被删除文件。
+
+## 5. 阶段 C：代码结构整合
+
+目标：
+
+- 降低上线前维护风险，清理重复逻辑和过大的模块，同时不改变公开行为。
+
+范围：
+
+- `src/App.tsx`
+- `src/ui/SignalDrawer.tsx`
+- `src/ui/ServerDossier.tsx`
+- `src/styles/components.css`
+- `src/core/session`
+- `src/core/watch`
+- `src/core/request`
+- `src/lib/*`
+
+建议拆分：
+
+- 从 `src/App.tsx` 抽出 profile 草稿操作、share copy 状态、主题/语言偏好处理，避免入口组件继续增长。
+- 从 `src/ui/SignalDrawer.tsx` 抽出 JSON tree、Base64 decode、write/publish editor、row card 子组件。
+- 从 `src/ui/ServerDossier.tsx` 抽出 profile selector、server list、auth form、session summary。
+- 从 `src/styles/components.css` 按组件或区域拆分，至少分离 command rail、server strip、signal drawer、request panel、modal/dossier、shared controls。
+
+业务边界：
+
+- L1：`src/main.tsx`、`src/App.tsx`、`src/ui/*` 只负责页面装配、输入和展示。
+- L2：`src/core/*` 负责连接、watch、request、诊断、跨模块状态。
+- L3：`src/lib/kinopio/server-profile.ts`、`src/lib/request/request-config.ts`、`src/lib/nats-subject/watch-subject.ts` 保持业务规则函数。
+- L4：URL、storage、identity、base64、JSON 格式化等纯函数应无 React 依赖。
+
+清理重点：
+
+- 合并重复的 subject split 逻辑，避免 watch、request、SignalDrawer 各自维护不一致实现。
+- 合并重复 timestamp 创建逻辑，或明确保留在各 hook 中的原因。
+- 检查 `LocalizedText`、`msg()`、裸字符串错误的混用，统一错误可本地化策略。
+- 检查 `TextEncoder`、`TextDecoder`、`atob`、`btoa` 使用点，集中处理浏览器兼容和异常。
+- 检查 `scope.dispose()`、subscription unsubscribe、timer cleanup，确保 React StrictMode 下不会重复泄漏。
+- 检查 `inert` 属性 TypeScript/React 类型兼容性，避免生产构建或浏览器可访问性问题。
+- 删除无意义 wrapper、过期 placeholder class、未使用 CSS selector、未使用 i18n key。
 
 非目标：
 
-- 首版不实现浏览器端 `serve()`。
-- 首版不做历史消息回放、持久化消息存储或 JetStream 管理。
-- 首版不实现账号、团队、多用户同步或服务端数据库。
-- 首版不在分享 URL 中默认携带认证凭据。
-
-## 1. 当前已确认事实
-
-- 当前仓库是早期初始化状态，根目录已有 `AGENTS.md`、`README.md`、`package.json`。
-- `UI_ Refer_img/` 下已有 6 张 UI 参考图，视觉方向已沉淀到 `DESIGN.md`。
-- `DESIGN.md` 是后续 UI 实施和视觉验收的主要依据；`PLAN.md` 只记录阶段、范围和验证。
-- 当前依赖已有 `kinopio-hub@^2.1.0`。
-- `node_modules/kinopio-hub/README_CN.md` 明确支持 `pub()`、`sub()`、`req()`、`serve()`。
-- `node_modules/kinopio-hub/types/index.d.ts` 明确导出 `KinopioHub`、`Scope`、`Variable`，其中 `Variable` 支持 `sub()` 和 `req()`。
-- `kinopio-hub` 根入口是浏览器友好入口，不引入 Node-only leaf runtime。
-- `kinopio-hub` 运行时会把未知连接选项透传给底层 NATS connect options，但当前 TypeScript 类型没有显式声明认证字段；实施阶段需要用本地类型封装或推动上游类型补齐。
-
-## 2. 外部规则依据
-
-- React 官方文档允许在约束不适合全栈框架时，从 Vite 等构建工具开始搭建 React 应用。
-- Vite 官方提供 React + TypeScript 模板，适合纯客户端 SPA。
-- NATS subject 使用 `.` 分层；`*` 只匹配单个完整 token，不能匹配 token 内部前缀；`>` 匹配尾部一个或多个 token，并且只能出现在最后。
-- NATS request-reply 本质是向请求 subject 发布消息，并带上 reply subject 等待响应。
-- NATS monitoring 可以通过 HTTP monitoring endpoint 暴露 `/varz`、`/connz`、`/subsz`、`/healthz` 等 JSON 信息；浏览器端能否读取取决于服务端是否启用 monitoring、HTTPS/CORS 和网络可达性。
-- Web Storage 可用于浏览器本地键值保存，但只能保存字符串，并且可能被同源脚本读取；因此认证信息保存必须明确标记为本地便利能力，不应默认进入分享 URL。
-
-参考链接：
-
-- https://react.dev/learn/start-a-new-react-project
-- https://vite.dev/guide/
-- https://docs.nats.io/nats-concepts/subjects
-- https://docs.nats.io/using-nats/developer/receiving/wildcards
-- https://docs.nats.io/running-a-nats-service/nats_admin/monitoring
-- https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
-- https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
-
-## 3. 技术选型
-
-首选技术栈：
-
-- Vite
-- React
-- TypeScript
-- `kinopio-hub`
-
-选择理由：
-
-- 项目目标是纯客户端实时控制台，不需要 SSR、数据库或服务端路由。
-- Vite + React + TypeScript 初始化成本低，适合从 0 搭建 SPA。
-- React 的组件和状态模型适合表达连接状态、服务器配置、subject 归一化、最新值面板和 request 表单。
-- TypeScript 可以约束 Kinopio payload、配置持久化格式、分享 URL schema 和 JSON 解析结果。
-
-暂不引入：
-
-- UI 组件库：首版手写轻量组件，避免样式和包体过早膨胀。
-- 状态管理库：首版使用 React state、context 和自定义 hook；只有跨页面复杂度上升后再评估 Zustand 等库。
-- 路由库：首版单页应用即可；分享状态通过 URL query/hash 表达。
-
-## 4. 架构边界
-
-遵循仓库 `AGENTS.md` 的四层架构思想，但根据前端项目实际命名落地。
-
-### L1 Entry
-
-职责：
-
-- Vite 入口。
-- React 根组件。
-- 页面布局、输入框、按钮、表单和可视化区域。
-- 只收集用户输入并转发给 L2，不直接操作 Kinopio 连接细节。
-
-候选目录：
-
-- `src/main.tsx`
-- `src/App.tsx`
-- `src/ui/`
-
-### L2 Core
-
-职责：
-
-- 管理应用会话状态。
-- 编排服务器配置、连接生命周期、subject 订阅、request-reply 和分享 URL 同步。
-- 决定何时重连、何时取消订阅、何时写入本地存储。
-- 保存用户可见错误状态和验证状态。
-
-候选目录：
-
-- `src/core/session/`
-- `src/core/share/`
-- `src/core/settings/`
-
-### L3 Business
-
-职责：
-
-- 实现可组合的业务能力。
-- 例如 subject 归一化、服务器 profile 管理、NATS monitoring 信息整理、request payload 处理、最新值模型转换。
-- L3 不拥有跨功能编排权。
-
-候选目录：
-
-- `src/features/subject-watch/`
-- `src/features/request-reply/`
-- `src/features/server-settings/`
-- `src/features/server-info/`
-
-### L4 Atom
-
-职责：
-
-- 微小、可复用、无业务编排的底层函数。
-- 例如 JSON parse / stringify、URLSearchParams 编解码、localStorage adapter、Kinopio client wrapper、NATS subject validator。
-
-候选目录：
-
-- `src/lib/kinopio/`
-- `src/lib/storage/`
-- `src/lib/url-state/`
-- `src/lib/json/`
-- `src/lib/nats-subject/`
-
-## 5. 数据模型草案
-
-### ServerProfile
-
-用途：保存一组可快速连接的服务器配置。
-
-字段草案：
-
-- `id`: 本地生成的 profile ID。
-- `name`: 用户可读名称。
-- `servers`: WSS 服务器 URL 数组。
-- `monitorUrl`: 可选 NATS monitoring base URL，例如 `https://demo.nats.io:8222`。
-- `serverSelectionMode`: `ordered`、`random` 或 `latency`。
-- `timeoutMs`: 请求和连接超时。
-- `auth`: 可选认证配置。
-- `rememberAuth`: 是否把认证配置保存到浏览器本地。
-
-### AuthConfig
-
-用途：描述浏览器可填入的认证信息。
-
-字段草案：
-
-- `mode`: `none`、`token`、`user-pass`、`creds` 或后续扩展值。
-- `token`: 可选 token。
-- `username`: 可选用户名。
-- `password`: 可选密码。
-- `creds`: 可选 NATS creds 文本。
-
-安全边界：
-
-- 认证信息只在用户选择记住时写入 localStorage。
-- 分享 URL 默认不包含认证信息。
-- 页面需要显示“本地保存不是加密保险箱，同源脚本可读取”的提示。
-- 后续如果用户强制要求分享认证信息，必须新增显式开关和明显风险确认，不作为首版默认行为。
-
-### WatchConfig
-
-用途：描述当前观察目标。
-
-字段草案：
-
-- `rawSubjectInput`: 用户原始输入。
-- `normalizedSubject`: 实际订阅 subject。
-- `normalizationMode`: `explicit-wildcard` 或 `all-descendants`。
-- `maxRows`: 最新值表最大 subject 数。
-
-归一化规则：
-
-- 输入为空时不订阅。
-- 输入包含合法 `*` 或 `>` 时，使用用户输入。
-- 输入不包含 wildcard 时，去掉首尾空白和尾部 `.`，再追加 `.>`。
-- 示例：`a.b.c` -> `a.b.c.>`。
-- 示例：`a.b.*` -> `a.b.*`。
-- 示例：`a.b.>` -> `a.b.>`。
-- 非法示例：`a.b.c*`、`a.b.>.c`、`a..b`。
-
-### LatestValueRow
-
-用途：显示每个命中 subject 的最新值。
-
-字段草案：
-
-- `subject`: 实际收到消息的 subject。
-- `value`: 解析后的 payload。
-- `rawValue`: 无法解析时的原始文本或安全展示形式。
-- `receivedAt`: 本地接收时间。
-- `sizeBytes`: payload 大小。
-- `count`: 当前会话内该 subject 收到的次数。
-
-### RequestConfig
-
-用途：描述 request-reply 面板状态。
-
-字段草案：
-
-- `subject`: 请求 subject。
-- `payloadText`: JSON 文本。
-- `timeoutMs`: 请求超时。
-- `lastResponse`: 最近响应。
-- `lastError`: 最近错误。
-
-### ShareState
-
-用途：编码到 URL 的非敏感状态。
-
-字段草案：
-
-- `version`: share schema 版本。
-- `servers`: WSS servers 列表。
-- `monitorUrl`: 可选 monitoring URL。
-- `serverSelectionMode`: 服务器选择模式。
-- `watchSubject`: 原始观察 subject。
-- `requestSubject`: request subject。
-- `requestPayload`: 可选 request JSON 文本。
-- `timeoutMs`: 可选超时设置。
-
-不进入 ShareState：
-
-- token。
-- password。
-- creds。
-- 任何私钥、证书、账号敏感内容。
-
-## 6. 大阶段计划
-
-### 阶段 0：视觉设计基线
-
-状态：已完成（2026-05-15）。
+- 不重做 UI 视觉方向。
+- 不引入路由、状态管理库、组件库。
+- 不改变 share schema，除非发现必须修复的兼容问题。
+
+验证：
+
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
+
+浏览器验证：
+
+- 打开首页无白屏。
+- 默认 demo WSS 自动连接或显示明确失败原因。
+- 输入 `chat` 后实际订阅显示 `chat.>`。
+- 输入 `a.b.*`、`a.b.>` 合法。
+- 输入 `a..b`、`a.b.>.c` 显示错误。
+- request subject 不允许 wildcard。
+- request payload 可为空、可格式化 JSON、非法 JSON 有错误。
+- 主题和语言切换可持久化。
+- Settings 弹窗可打开、关闭、Escape 关闭。
+- Share URL 可复制、可恢复非敏感配置。
+
+通过标准：
+
+- 用户可见行为与清理前一致或更稳定。
+- 大文件被拆分后边界清楚，无循环依赖和重复业务规则。
+- StrictMode 下没有明显重复连接、重复订阅、重复 timer 残留。
+
+## 6. 阶段 D：UI、可访问性与多语言整理
 
 目标：
 
-- 基于 `UI_ Refer_img/` 参考图建立 UI 设计语言。
-- 将视觉方向、布局、组件、token、交互状态和验收清单落到 `DESIGN.md`。
-- 明确实现阶段必须遵循的 UI 边界。
+- 上线前统一可见文案、交互状态、键盘可用性和中英文词条。
 
-范围内：
+范围：
 
+- `src/ui/*`
+- `src/i18n/core.ts`
+- `src/i18n/locales/zh-CN.json`
+- `src/i18n/locales/en.json`
+- `src/styles/*`
+
+任务：
+
+- 对齐中英文 key，删除未使用 key，补齐 UI 中仍使用但词典缺失的 key。
+- 检查所有 dialog 是否有 `role="dialog"`、`aria-modal`、标题、关闭按钮、Escape、背景点击策略。
+- 检查表单字段 `label`、错误提示、`aria-invalid`、按钮 disabled 状态。
+- 检查暗色/亮色 token 是否覆盖全部状态：connected、connecting、disconnected、error、reachable、failed、fresh、success。
+- 检查移动端布局：CommandRail、ServerInfoStrip、SignalDrawer、RequestPanel、ServerDossier 不应横向溢出。
+- 检查动画和 `prefers-reduced-motion`，避免核心信息依赖动画才能理解。
+- 检查字体声明和实际 `public/fonts` 文件是否一致。
+- 检查 JSON、Base64、binary payload 展示是否可读，不泄露隐藏凭据。
+
+验证：
+
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
+
+浏览器断点：
+
+- 320px
+- 390px
+- 768px
+- 1280px
+- 1680px
+
+通过标准：
+
+- 中英文切换后无裸 key。
+- 键盘可完成主要流程：输入 subject、打开设置、保存连接、展开 request、发送 request、复制 share URL。
+- 移动端无水平滚动。
+- 暗色和亮色都可读。
+
+## 7. 阶段 E：文档同步
+
+目标：
+
+- 让 README、DESIGN、部署说明、PLAN 与实际代码一致，避免上线后按旧文档操作。
+
+范围：
+
+- `README.md`
 - `DESIGN.md`
 - `PLAN.md`
-- `UI_ Refer_img/` 的只读参考分析
+- `deploy/mushroomkingdom/compose.yaml`
+- `deploy/mushroomkingdom/conf/Caddyfile`
+- 可能新增的 `docs/`，只有内容明显超过 README 时才创建。
 
-范围外：
+任务：
 
-- 不修改实现代码。
-- 不生成最终 UI 截图。
-- 不把参考图直接复制为页面背景或素材。
+- README 改为当前可交付能力与操作清单，不再使用“阶段化叙述”。
+- README 中 `PLAN.md` 链接应指向当前上线整合计划。
+- DESIGN 只保留会影响 UI 决策和验收的规则，删掉已过期或已完成但不再指导实现的描述。
+- 部署说明与 `deploy/mushroomkingdom` 实际配置同步，包括端口、证书路径、缓存策略、SPA fallback。
+- 明确 share URL 不携带认证信息，request payload 会进入 share URL，避免敏感业务数据。
+- 明确 localStorage 认证风险。
+- 记录 `npm run typecheck`、`npm run build`、`npm run preview` 是上线前最小验证。
+- 如果最终决定提交 `package-lock.json`，文档和 `.gitignore` 必须同步。
 
-完成定义：
+验证：
 
-- `DESIGN.md` 描述桌面端、移动端、主要组件和视觉 token。
-- `DESIGN.md` 明确参考图如何转译为 Web UI，而不是笼统说“赛博风”。
-- `PLAN.md` 中说明 UI 实施必须以 `DESIGN.md` 为验收依据。
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
 
-必要验证：
+人工检查：
 
-- 检查 `DESIGN.md` 是否覆盖 CommandRail、ServerDossier、SignalDrawer、RequestPanel、ShareSheet。
-- 检查 `PLAN.md` 是否把视觉设计阶段纳入实施顺序。
+- README 中所有命令真实存在。
+- README 中所有路径真实存在。
+- README 中所有公开行为可在 UI 或源码中找到。
+- 中文和英文 UI 文案与 README 描述不冲突。
 
-风险：
+通过标准：
 
-- 参考图视觉很强，如果实现时不控制信息层级，可能会影响 JSON 和表单可读性。
+- 用户可以只看 README 完成安装、开发、验证、部署。
+- DESIGN 可以作为 UI 回归验收来源。
+- PLAN 只保留未完成或上线整合相关事项，不堆旧实施流水账。
 
-回滚方式：
+本阶段完成标准：
 
-- 回滚 `DESIGN.md` 和 `PLAN.md` 中与视觉阶段相关的说明。
+- `README.md`、`DESIGN.md`、`PLAN.md` 的内容与当前代码结构、共享行为一致。
+- 部署章节与 `deploy/mushroomkingdom/compose.yaml` / `conf/Caddyfile` 一致。
+- `npm run typecheck`、`npm run build`、`npm run preview` 三命令可执行并通过。
 
-### 阶段 1：项目脚手架和工程基线
-
-状态：已完成（2026-05-15）。
-
-目标：
-
-- 建立 Vite + React + TypeScript 前端工程。
-- 保留当前 `kinopio-hub` 依赖。
-- 建立最小开发、类型检查、构建命令。
-- 建立符合 `DESIGN.md` 的首版视觉骨架。
-
-范围内：
-
-- `package.json`
-- `package-lock.json`
-- `index.html`
-- `vite.config.ts`
-- `tsconfig*.json`
-- `src/`
-
-范围外：
-
-- 不实现完整 UI。
-- 不接入真实 NATS 行为之外的 mock 服务。
-- 不处理部署。
-- 不偏离 `DESIGN.md` 定义的视觉 token 和布局方向。
-
-完成定义：
-
-- `npm install` 后依赖完整。
-- `npm run dev` 可以启动页面。
-- `npm run typecheck` 可以执行。
-- `npm run build` 可以产出静态构建。
-- 首屏空壳 UI 与 `DESIGN.md` 的 CommandRail、三分区结构和视觉 token 一致。
-
-必要验证：
-
-- 运行类型检查。
-- 运行生产构建。
-- 浏览器打开本地页面，确认无启动白屏。
-- 对照 `DESIGN.md` 做一次视觉 smoke check。
-
-风险：
-
-- 当前 `package.json` 是 CommonJS 形态，而 Vite 项目通常使用 ESM；需要在实施时统一项目模块类型。
-
-回滚方式：
-
-- 回滚脚手架新增文件和 `package.json` 脚本变更。
-
-### 阶段 2：Kinopio 连接核心
-
-状态：已完成（2026-05-15）。
+## 8. 阶段 F：必要注释补齐
 
 目标：
 
-- 封装浏览器端 KinopioHub 连接。
-- 支持默认 demo WSS。
-- 支持手动 servers 列表。
-- 暴露连接状态、错误、重连和断开能力。
+- 添加少量高价值注释，解释无法从代码一眼看出的协议、安全和生命周期约束。
 
-范围内：
+应添加注释的位置：
 
-- Kinopio client adapter。
-- 服务器 profile 状态。
-- 连接生命周期 hook。
-- 错误展示模型。
+- share state 编解码：说明 schema version、base64url、认证信息排除边界。
+- profile storage：说明 `rememberAuth` 只是 localStorage 便利保存，不是加密保护。
+- subject 归一化：说明普通 subject 自动追加 `.>`，wildcard 输入必须遵守 NATS token 规则。
+- request subject 校验：说明 request-reply 必须使用精确 subject，不允许 wildcard。
+- session/watch cleanup：说明 StrictMode、重连、unsubscribe、`scope.dispose()` 的清理顺序。
+- server diagnostics：说明 probe 是额外短连接，不代表当前主 session 一定使用该节点。
+- SignalDrawer Base64 decode：说明只对看起来像可打印 UTF-8 的值提供展示切换。
 
-范围外：
+不应添加注释的位置：
 
-- 不做 request-reply UI。
-- 不做 latest value 表。
-- 不做 NATS monitoring 详情。
+- 自解释 props。
+- CSS 普通布局值。
+- 可从类型名直接读出的字段。
+- 过时 TODO。
+- 对代码逐行复述的解释。
 
-完成定义：
+验证：
 
-- 页面可使用默认 demo WSS 创建 KinopioHub 实例。
-- 用户可输入多个 WSS server。
-- 页面显示 `disconnected`、`connecting`、`connected`、`error` 状态。
-- 切换 servers 后旧 hub 被 dispose，新 hub 正确创建。
+```bash
+npm run typecheck
+npm run build
+```
 
-必要验证：
+通过标准：
 
-- 默认配置可尝试连接。
-- 填写非法 URL 时给出前端校验错误。
-- 切换配置不会留下旧订阅。
-- 关闭页面或切换配置时调用 `dispose()`。
+- 注释数量少，但覆盖高风险规则。
+- 注释不会和 README、DESIGN、实际行为冲突。
+- 注释不包含密钥、真实私有服务器凭据、临时调试说明。
 
-风险：
-
-- `kinopio-hub` 默认 demo WSS 可用性受外部网络影响，测试不能只依赖 demo。
-- 底层连接状态暴露有限，若需要显示实际连接到哪个候选 server，可能需要查看 `kinopio-hub` 是否有稳定公开 API。
-
-回滚方式：
-
-- 保留 UI，禁用连接入口；回滚 adapter 与 hook。
-
-### 阶段 3：服务器设置、认证和本地保存
-
-状态：已完成（2026-05-15）。
+## 9. 阶段 G：部署与安全上线检查
 
 目标：
 
-- 提供服务器配置面板。
-- 支持保存多个 profile。
-- 支持认证信息填写和本地保存。
-- 明确认证信息不会默认进入分享 URL。
+- 确认静态部署配置、安全边界和浏览器数据处理符合上线状态。
 
-范围内：
+范围：
 
-- servers 多行输入。
-- serverSelectionMode 选择。
-- timeout 设置。
-- auth mode 表单。
-- localStorage 持久化。
-- “清除本地保存信息”操作。
+- `deploy/mushroomkingdom/compose.yaml`
+- `deploy/mushroomkingdom/conf/Caddyfile`
+- README 部署章节
+- share URL、localStorage、auth 表单、request payload 相关 UI
 
-范围外：
+任务：
 
-- 不做服务端账号系统。
-- 不把凭据上传到任何远端。
-- 不做浏览器加密保险箱承诺。
+- 确认 Caddy `try_files {path} /index.html` 支持 SPA share URL 直开。
+- 确认 assets 使用长期缓存，`index.html` 不长期缓存。
+- 确认 HTTP/HTTPS 端口和证书路径与 README 一致。
+- 确认容器只挂载静态 `dist`、Caddy 配置和证书只读路径。
+- 确认页面不把 token、password、creds 写入 URL。
+- 确认清空本地保存只清理当前应用 key，不误删同源其他数据。
+- 确认连接错误不会把完整敏感连接串展示到 UI。
+- 确认生产路径无调试后门、硬编码私钥、临时绕过。
 
-完成定义：
+验证：
 
-- 刷新页面后可恢复上次选择的服务器 profile。
-- 用户选择记住认证后，刷新页面可恢复认证表单。
-- 用户取消记住认证或点击清除后，本地认证信息被删除。
-- URL 分享不包含认证字段。
+```bash
+npm run build
+npm run preview
+```
 
-必要验证：
+可选真实部署验证：
 
-- localStorage 写入和读取正常。
-- 清除操作后刷新页面不再恢复敏感字段。
-- 分享 URL 中搜索不到 token、password、creds 等字段。
-- 认证配置实际能传给 KinopioHub 运行时。
+```bash
+rsync -az --delete ./dist/ MushroomKingdom:/root/KinopioHub.web/dist/
+rsync -az ./deploy/mushroomkingdom/conf/ MushroomKingdom:/root/KinopioHub.web/conf/
+rsync -az ./deploy/mushroomkingdom/compose.yaml MushroomKingdom:/root/KinopioHub.web/compose.yaml
+ssh MushroomKingdom 'cd /root/KinopioHub.web && docker compose up -d'
+```
 
-风险：
+通过标准：
 
-- `kinopio-hub@2.1.0` 类型定义没有显式认证字段。实施时需要先确认底层 `@nats-io/nats-core` 浏览器认证选项名称，并用本地扩展类型封装；如果运行时或浏览器构建不支持某些认证方式，需要调整首版 auth mode。
+- 本地 preview 可打开并完成核心流程。
+- 远端部署后 `https://hub.skyboooox.com:7800` 和 `http://hub.skyboooox.com:7801` 可访问。
+- share URL 直开可恢复非敏感状态。
+- localStorage 中认证只在用户选择 remember auth 时存在。
 
-回滚方式：
-
-- 保留无认证连接模式，禁用 auth 表单和本地 auth 保存。
-
-### 阶段 4：Subject 观察和最新值展示
-
-状态：已完成（2026-05-15）。
-
-目标：
-
-- 实现右上角 subject 输入框。
-- 实现 subject 归一化。
-- 订阅命中的所有子层。
-- 只显示每个实际 subject 的最新值。
-
-范围内：
-
-- subject 输入、校验和归一化。
-- subscription 管理。
-- latest value map。
-- JSON 格式化展示。
-- 每个 subject 的接收时间、次数和 payload 大小。
-
-范围外：
-
-- 不保存历史消息。
-- 不做服务端查询。
-- 不做 JetStream replay。
-
-完成定义：
-
-- 输入 `a.b.c` 时，页面显示实际订阅 `a.b.c.>`。
-- 输入 `a.b.*` 或 `a.b.>` 时，页面尊重用户 wildcard。
-- 收到多个子 subject 消息时，按 subject 分行显示最新值。
-- 相同 subject 新消息覆盖旧值，并增加计数和更新时间。
-- 停止或修改 subject 时，旧 subscription 被取消。
-
-必要验证：
-
-- 校验非法 wildcard：`a.b.c*`、`a.b.>.c`、`a..b`。
-- 校验普通 subject 自动追加 `.>`。
-- 使用可控 subject 发布消息，确认 latest value 更新。
-- 切换 subject 后旧 subject 不再更新 UI。
-
-风险：
-
-- NATS `>` 匹配一个或多个尾部 token，不匹配根 subject 本身。因此 `a.b.c.>` 不会收到精确 `a.b.c`。当前用户需求是“所有子层”，首版按子层处理；如果后续要同时包含根 subject，需要并行订阅 `a.b.c` 和 `a.b.c.>`。
-
-回滚方式：
-
-- 保留连接页面，禁用 watcher 面板。
-
-### 阶段 5：Request-Reply 面板
-
-状态：已完成（2026-05-15）。
+## 10. 阶段 H：最终验收与发布准备
 
 目标：
 
-- 实现只做 request 的 request-reply 功能。
-- 用户输入 request subject 和 JSON payload，发送后显示响应或错误。
-
-范围内：
-
-- request subject 输入。
-- JSON payload 编辑。
-- timeout 设置。
-- response JSON 格式化。
-- loading、success、error 状态。
-
-范围外：
-
-- 不实现 `serve()`。
-- 不实现批量 request。
-- 不做 response 历史列表。
-
-完成定义：
-
-- 连接成功后，用户可向指定 subject 执行 `Variable.req()`。
-- payload 必须是合法 JSON；非法 JSON 不发送请求。
-- 超时、无 responder、服务端返回错误对象时，UI 给出可读错误。
-- 响应以 JSON/tree 或格式化文本显示。
-
-必要验证：
-
-- 合法 JSON request 成功发送。
-- 非法 JSON 被前端阻止。
-- request 超时能显示错误。
-- 切换服务器或断开连接时禁止发送。
-
-风险：
-
-- request-reply 需要远端有 responder；demo 环境不一定存在匹配服务。验收需要准备一个可控 responder 或使用已有 Kinopio 服务。
-
-回滚方式：
-
-- 保留 request 表单 UI，禁用发送按钮。
-
-### 阶段 6：NATS 服务器基本信息展示
-
-状态：已完成（2026-05-15）。
-
-目标：
-
-- 在 Web 中显示 NATS 服务器基本信息。
-- 优先使用 monitoring endpoint；不可用时显示连接状态和不可用原因。
-
-范围内：
-
-- monitoring URL 配置。
-- `/varz` 拉取。
-- `/healthz` 可选拉取。
-- 基本信息卡片。
-- 错误和 CORS 不可用提示。
-
-范围外：
-
-- 不实现完整 NATS 管理后台。
-- 不默认暴露 monitoring 安全建议之外的敏感诊断。
-- 不强制要求所有服务器都提供 monitoring。
-
-完成定义：
-
-- 默认 demo profile 可配置 `https://demo.nats.io:8222` 作为 monitoring base URL。
-- 页面显示 server name、server id、version、uptime、connections、subscriptions、in/out messages、in/out bytes 等字段。
-- monitoring 不可用时，不影响变量订阅和 request 功能。
-- 用户能看见 monitoring 失败原因，例如网络错误、CORS、HTTP 状态错误。
-
-必要验证：
-
-- 能读取可访问 monitoring endpoint 的 `/varz`。
-- monitoring endpoint 不可达时 UI 降级。
-- monitoring URL 不合法时前端阻止请求。
-
-风险：
-
-- NATS monitoring 端口不带认证，不应随意暴露在公网。文档和 UI 需要提示用户只填写自己认为安全可访问的 monitoring 地址。
-- 部分 NATS 部署可能没有 CORS 或 HTTPS，浏览器无法直接读取；这不是 Kinopio 连接失败。
-
-回滚方式：
-
-- 隐藏 server info 卡片，不影响主功能。
-
-### 阶段 7：分享 URL 和状态恢复
-
-状态：已完成（2026-05-15）。
-
-目标：
-
-- 支持复制当前视图的分享 URL。
-- 打开分享 URL 后恢复非敏感配置。
-- 与 localStorage 中的 profile 协同。
-
-范围内：
-
-- URL query 或 hash schema。
-- share state 编码和解码。
-- schema version。
-- 分享按钮。
-- URL 状态恢复优先级。
-
-范围外：
-
-- 不分享认证凭据。
-- 不做短链接服务。
-- 不做云端 profile 同步。
-
-状态恢复优先级：
-
-1. URL 中的 share state。
-2. localStorage 中用户上次使用的 profile。
-3. 内置 demo 默认值。
-
-完成定义：
-
-- 点击复制 URL 后，URL 中包含 servers、monitorUrl、watchSubject、requestSubject、requestPayload、timeout 等非敏感字段。
-- 新浏览器打开 URL 后，能恢复 watcher 和 request 面板。
-- 如果本地已有匹配 profile 的认证信息，可以让用户选择是否套用本地认证。
-- URL 解码失败时，页面回退到默认值并显示提示。
-
-必要验证：
-
-- 复制 URL 后在新标签打开，subject 和 servers 保持一致。
-- URL 不包含 token、password、creds。
-- 手动篡改 URL 不会导致页面崩溃。
-- 旧 schema version 可以安全降级或提示不兼容。
-
-风险：
-
-- request payload 可能包含业务敏感数据。首版可以默认分享 payload，但 UI 应提示“分享链接会包含当前 request payload”；如需更安全，可提供“不包含 payload”的复制选项。
-
-回滚方式：
-
-- 保留 localStorage 恢复，隐藏分享按钮。
-
-### 阶段 8：整体 UI、可访问性和端到端验证
-
-状态：已完成（2026-05-15）。
-
-目标：
-
-- 把各功能整合为可用的单页控制台。
-- 收口为更简洁凌厉的工业风界面。
-- 增加暗色 / 亮色切换和中文 / 英文切换。
-- 让主题与语言偏好写入浏览器本地，但不进入 share URL。
-- 完成真实浏览器验证。
-- 补齐 README 使用说明。
-
-范围内：
-
-- 响应式布局。
-- JSON 词条翻译层。
-- `theme / locale` 本地偏好持久化。
-- 工业风 light/dark 双主题 token。
-- 连接状态提示。
-- 空状态、错误状态、loading 状态。
-- README 启动和使用说明。
-- 最小端到端检查。
-
-范围外：
-
-- 不引入第三方 i18n 库。
-- 不做服务端用户偏好同步。
-- 不做移动端深度优化之外的基本响应式。
-
-完成定义：
-
-- 桌面端可以同时看到连接、服务器信息、subject 最新值和 request 面板。
-- 小屏幕下各区域可纵向使用。
-- 输入框、按钮、弹窗和状态条统一为无阴影工业风。
-- 顶栏可切换亮色 / 暗色、中文 / 英文，刷新后保持。
-- 当前全部可见 UI 文案可随语言切换。
-- README 描述真实命令和默认行为。
-- 构建、类型检查、浏览器 smoke test 全部通过。
-
-必要验证：
-
-- `npm run typecheck`
-- `npm run build`
-- 本地浏览器打开 Vite dev server。
-- 默认 demo 配置 smoke test。
-- 主题和语言切换后刷新验证本地持久化。
-- 使用可控 Kinopio/NATS 环境验证 subscribe 和 request。
-- 手动刷新页面验证 localStorage 恢复。
-- 复制 URL 到新标签验证分享恢复。
-
-风险：
-
-- 如果 demo WSS 或远端 responder 不稳定，最终验收必须准备本地或自有 NATS 测试环境。
-
-回滚方式：
-
-- 回滚 UI 整合层，保留已验证的底层 adapter 和业务函数。
-
-### 阶段 9：工业首屏重设计
-
-状态：已完成（2026-05-16）。
-
-目标：
-
-- 将页面改为全新首屏式工业控制台。
-- 默认亮色主题采用白底、黑线、高饱和工业黄。
-- 保留连接、subject 输入、实时值、写回、request-reply、设置、分享、亮暗主题和中英切换。
-- 增加明显但不干扰输入的数据面板、连接状态、折叠抽屉和弹窗动效。
-
-范围内：
-
-- 首屏布局、主题 token、panel 结构视觉、弹窗视觉。
-- 连接中扫描、页面进入、panel reveal、实时值刷新、Reply 折叠展开动效。
-- `prefers-reduced-motion` 下关闭或显著降低动画。
-
-范围外：
-
-- 不修改 Kinopio/NATS 连接和 request 逻辑。
-- 不修改 share URL schema。
-- 不新增生产依赖或图片素材。
-
-完成定义：
-
-- 页面首屏符合白底黄黑工业风。
-- 服务器状态为紧凑横向仪表。
-- 实时值区域成为主内容面板。
-- Reply 控制台默认收起，展开动画稳定。
-- 底部 utility dock 高度稳定，分享按钮不被拉伸。
-
-必要验证：
-
-- `npm run typecheck`
-- `npm run build`
-- `git diff --check`
-- 侧边栏浏览器检查亮色 / 暗色、中文 / 英文、桌面宽屏、窄屏。
-- 验证设置弹窗、分享弹窗、Reply 抽屉、JSON 格式化和主题输入刷新持久化。
-
-## 7. 实施顺序建议
-
-推荐顺序：
-
-1. 阶段 0：先冻结 `DESIGN.md` 视觉设计基线。
-2. 阶段 1：建立工程基线和首版视觉骨架。
-3. 阶段 2：打通 Kinopio 连接。
-4. 阶段 4：优先完成核心“实时查看最新值”。
-5. 阶段 5：再做 request-reply。
-6. 阶段 3：补服务器 profile、认证和本地保存。
-7. 阶段 6：补 NATS server info。
-8. 阶段 7：补分享 URL。
-9. 阶段 8：统一 UI、文档和端到端验证。
-10. 阶段 9：工业首屏重设计。
-
-如果希望更早体验完整产品闭环，也可以把阶段 3 的“基础 profile 保存”提前到阶段 2 后，但认证保存建议等连接核心稳定后再加。
-
-## 8. 首个实施 Sprint 契约
-
-Sprint 名称：工程基线 + 空壳 UI。
-
-确切目标：
-
-- 创建 Vite + React + TypeScript 工程。
-- 按 `DESIGN.md` 建立浅色技术图纸风格的空壳 UI。
-- 页面展示 KinopioHub.web 标题、右上角 subject 输入占位、服务器设置占位、request 面板占位。
-- 暂不连接真实 NATS。
-
-范围内文件：
-
-- `package.json`
-- `package-lock.json`
-- `index.html`
-- `vite.config.ts`
-- `tsconfig*.json`
-- `src/`
-- `README.md`
-
-范围外内容：
-
-- 不实现真实连接。
-- 不实现 localStorage。
-- 不实现分享 URL。
-- 不新增 UI 组件库。
-
-完成定义：
-
-- `npm run dev` 可启动。
-- `npm run typecheck` 通过。
-- `npm run build` 通过。
-- 浏览器可看到首版布局，无白屏。
-
-验收通过阈值：
-
-- 类型检查和构建必须通过。
-- 页面首次加载不能有未捕获 runtime error。
-- 首屏布局必须能看出 `DESIGN.md` 定义的 CommandRail、ServerDossier、SignalDrawer 和 RequestPanel。
-- 不能修改与本 Sprint 无关的文件。
-
-已知风险：
-
-- 当前仓库已有未提交改动，实施前必须再次检查 `git status` 并保护用户改动。
-
-回滚方式：
-
-- 删除 Sprint 新增脚手架文件，恢复 `package.json` 到实施前状态。
-
-## 9. 开放问题
-
-当前不阻塞计划落地的问题：
-
-1. 精确 subject 是否也要和所有子层一起显示。例如输入 `a.b.c` 后，是否需要同时订阅 `a.b.c` 和 `a.b.c.>`。当前按用户确认的“所有子层”处理，只订阅 `a.b.c.>`。
-2. 认证字段最终支持哪些模式，需要在实施时根据 `@nats-io/nats-core` 浏览器能力和 `kinopio-hub` 透传行为验证。
-3. 分享 URL 是否要包含 request payload。当前计划默认包含，但 UI 需要提醒；如果 payload 经常敏感，可以改为默认不包含。
-4. NATS server info 是否必须在没有 monitoring endpoint 的环境中仍然显示更多底层连接信息。当前计划只保证连接状态，详细服务器信息依赖 monitoring。
-
-## 10. 总体验收标准
-
-项目完成时必须满足：
-
-- 默认 demo WSS 配置可用，或在 demo 不稳定时有明确降级说明。
-- 用户可手动配置 servers 列表并连接。
-- 用户可填写认证信息并选择是否保存到浏览器本地。
-- 用户输入普通 subject 后自动归一化为所有子层 wildcard。
-- 页面只显示每个实际 subject 的最新值。
-- 用户可向指定 subject 发起 request 并看到响应或错误。
-- 页面可显示 NATS server 基本信息；不可用时有清晰原因。
-- 分享 URL 能恢复非敏感状态。
-- 分享 URL 默认不包含认证凭据。
-- UI 视觉、布局、交互状态和响应式行为符合 `DESIGN.md`。
-- 页面支持暗色 / 亮色切换和中文 / 英文切换。
-- 主题和语言偏好不进入分享 URL。
-- 类型检查、生产构建和浏览器 smoke test 通过。
-- README 与实际命令、默认行为和安全边界一致。
+- 用一组最小但覆盖核心风险的检查确认可以上线。
+
+必跑命令：
+
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
+
+建议补充命令：
+
+```bash
+npm audit --omit=dev
+```
+
+浏览器验收场景：
+
+- 初次打开：无本地存储时创建默认 demo profile。
+- 连接：demo WSS 成功或失败时有明确状态。
+- Settings：新增、选择、删除 profile；保存 server list；切换 ordered/random/latency；设置 timeout。
+- Auth：none、token、user-pass、creds 表单校验；remember auth 风险提示可见。
+- Watch：普通 subject 自动追加 `.>`；合法 wildcard 保持原样；非法 subject 显示错误。
+- Latest value：同一 subject 只保留最新值，count 增加，最新行置顶。
+- Signal edit：可编辑 payload、格式化 JSON、写回、重置、console.log。
+- Base64：可识别可打印 UTF-8/base64url，无法解析时不误显示。
+- Request：精确 subject、JSON payload、timeout、成功响应、timeout/no responder 错误。
+- Share：复制 URL、打开 URL 恢复 servers、selection mode、watch subject、request subject、payload、timeout。
+- Share 安全：URL 不含 token、password、creds。
+- UI：中英文、亮色/暗色、移动端、键盘操作、reduced motion。
+- 部署：本地 preview 和 MushroomKingdom 静态服务行为一致。
+
+发布前检查：
+
+- `git status --short --ignored` 中只剩预期改动。
+- README、DESIGN、PLAN 与实际实现一致。
+- 无 `.DS_Store`、`*.tsbuildinfo`、临时日志、临时备份文件进入提交。
+- 无密钥、令牌、私钥、生产密码进入提交。
+- 若保留 `package-lock.json`，`.gitignore` 和 README 与该策略一致。
+- 若不保留 `package-lock.json`，最终说明写清原因和复现风险。
+
+通过标准：
+
+- 所有必跑命令通过。
+- 核心浏览器验收场景通过。
+- 部署说明能复现上线流程。
+- 剩余风险被明确列出，不隐藏。
+
+## 11. 建议实施顺序
+
+1. 阶段 A：冻结基线。
+2. 阶段 B：清理生成物和无用文件。
+3. 阶段 C：代码结构整合。
+4. 阶段 D：UI、可访问性、多语言整理。
+5. 阶段 E：文档同步。
+6. 阶段 F：必要注释补齐。
+7. 阶段 G：部署与安全检查。
+8. 阶段 H：最终验收与发布准备。
+
+## 12. Sprint 契约模板
+
+每个实施 Sprint 开始前填入：
+
+```json
+{
+  "goal": "",
+  "scope": [],
+  "out_of_scope": [],
+  "definition_of_done": [],
+  "verification": [],
+  "pass_fail_threshold": [],
+  "risks": [],
+  "rollback": []
+}
+```
+
+默认回滚方式：
+
+- 小阶段使用普通 git diff 回滚。
+- 删除文件前确认不是已跟踪必需资产。
+- 部署变更先本地 build/preview，再远端替换。
+- 安全策略变更必须先说明影响面，再实施。
+
+## 13. 当前未决问题
+
+- `package-lock.json` 是否应作为上线锁文件提交。
+- `public/fonts/HYFengShangHei-45W.ttf` 是否保留或补 CSS 声明。
+- `archive/PLAN-2026-05-18.md` 是否长期保留为历史记录。
+- 是否需要新增 lint/format/test 脚本，还是保持上线前只用 typecheck/build/browser 验收。
+- 是否需要真实远端部署验证，还是本轮只做到本地 build/preview。

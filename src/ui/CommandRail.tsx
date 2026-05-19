@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useI18n, type LocalizedText } from "../i18n";
 
 type CommandRailProps = {
@@ -12,9 +13,60 @@ export function CommandRail({
   onSubjectInputChange,
 }: CommandRailProps) {
   const { t, tText } = useI18n();
+  const [isSubjectChanging, setIsSubjectChanging] = useState(false);
+  const previousSubjectInputRef = useRef(subjectInput);
+  const subjectChangeDebounceTimerRef = useRef<number | null>(null);
+  const subjectChangeAnimationTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (subjectChangeDebounceTimerRef.current !== null) {
+        window.clearTimeout(subjectChangeDebounceTimerRef.current);
+      }
+
+      if (subjectChangeAnimationTimerRef.current !== null) {
+        window.clearTimeout(subjectChangeAnimationTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (previousSubjectInputRef.current === subjectInput) {
+      return;
+    }
+
+    previousSubjectInputRef.current = subjectInput;
+    if (subjectChangeDebounceTimerRef.current !== null) {
+      window.clearTimeout(subjectChangeDebounceTimerRef.current);
+    }
+
+    subjectChangeDebounceTimerRef.current = window.setTimeout(() => {
+      subjectChangeDebounceTimerRef.current = null;
+      replaySubjectChangeAnimation();
+    }, 1000);
+  }, [subjectInput]);
+
+  function replaySubjectChangeAnimation() {
+    if (subjectChangeAnimationTimerRef.current !== null) {
+      window.clearTimeout(subjectChangeAnimationTimerRef.current);
+    }
+
+    setIsSubjectChanging(false);
+    window.requestAnimationFrame(() => {
+      setIsSubjectChanging(true);
+      subjectChangeAnimationTimerRef.current = window.setTimeout(() => {
+        setIsSubjectChanging(false);
+        subjectChangeAnimationTimerRef.current = null;
+      }, 920);
+    });
+  }
 
   return (
-    <header className="command-rail">
+    <header
+      className={`command-rail${
+        isSubjectChanging ? " command-rail--subject-changing" : ""
+      }`}
+    >
       <div className="command-rail__brand-block">
         <h1 className="command-rail__brand">{t("chrome.title")}</h1>
       </div>
@@ -27,7 +79,7 @@ export function CommandRail({
           type="text"
           value={subjectInput}
           onChange={(event) => onSubjectInputChange(event.target.value)}
-          placeholder="scope.variable"
+          placeholder={t("chrome.subjectInputPlaceholder")}
           spellCheck={false}
         />
         {subjectError ? (

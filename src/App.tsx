@@ -1,12 +1,11 @@
 import type { ServerSelectionMode } from "kinopio-hub";
 import { useEffect, useMemo, useState } from "react";
-import { useNatsMonitoring } from "./core/monitoring/useNatsMonitoring";
 import { useRequestReply } from "./core/request/useRequestReply";
 import { useKinopioSession } from "./core/session/useKinopioSession";
+import { useServerDiagnostics } from "./core/session/useServerDiagnostics";
 import { useSubjectWatch } from "./core/watch/useSubjectWatch";
 import {
   I18nProvider,
-  isMessageDescriptor,
   msg,
   translate,
   useI18n,
@@ -14,6 +13,10 @@ import {
   type LocalizedText,
   type ThemeMode,
 } from "./i18n";
+import {
+  copyTextToClipboard,
+  formatClipboardError,
+} from "./lib/browser/clipboard";
 import {
   createDefaultServerProfile,
   createServerProfileDraft,
@@ -104,11 +107,11 @@ function AppFrame({
   const [subjectInput, setSubjectInput] = useState(
     initialShareState.shareState?.watchSubject ||
       initialSubjectInputPreference ||
-      "weather.station.alpha",
+      "chat",
   );
   const [requestSubjectInput, setRequestSubjectInput] = useState(
     initialShareState.shareState?.requestSubject ||
-      "weather.station.alpha.getSnapshot",
+      "chat.request",
   );
   const [requestPayloadText, setRequestPayloadText] = useState(
     initialShareState.shareState?.requestPayload ||
@@ -119,6 +122,7 @@ function AppFrame({
   );
   const [isServerDossierOpen, setIsServerDossierOpen] = useState(false);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
+  const demoProfileName = translate(locale, "serverDossier.profileNames.demo");
   const [shareCopyStatus, setShareCopyStatus] = useState<"idle" | "success" | "error">(
     "idle",
   );
@@ -140,6 +144,16 @@ function AppFrame({
     shouldConnect: true,
   });
 
+  function activateProfile(nextProfile: KinopioServerProfile) {
+    setSelectedProfileId(nextProfile.id);
+    setAppliedProfile(nextProfile);
+    setProfileDraft(createServerProfileDraft(nextProfile));
+    setSessionControl((current) => ({
+      revision: current.revision + 1,
+      shouldConnect: true,
+    }));
+  }
+
   useEffect(() => {
     persistProfileState(savedProfiles, selectedProfileId);
   }, [savedProfiles, selectedProfileId]);
@@ -157,11 +171,6 @@ function AppFrame({
     [profileDraft],
   );
   const session = useKinopioSession(appliedProfile, sessionControl, locale);
-  const monitoring = useNatsMonitoring(
-    appliedProfile.monitorUrl,
-    session.status,
-    locale,
-  );
   const signalWatch = useSubjectWatch(
     session.hubRef,
     session.status,
@@ -178,13 +187,12 @@ function AppFrame({
     },
     locale,
   );
-  const activeServerSummary = useMemo<LocalizedText>(() => {
-    if (appliedProfile.servers.length === 0) {
-      return msg("serverOverview.summary.noServer");
-    }
-
-    return appliedProfile.servers[0];
-  }, [appliedProfile.servers]);
+  const serverDiagnostics = useServerDiagnostics(
+    appliedProfile,
+    session.status,
+    session.connectedServer,
+    locale,
+  );
   const shareLoadAlertMessage = useMemo<LocalizedText | null>(() => {
     if (!initialShareState.errorMessage) {
       return null;
@@ -221,13 +229,7 @@ function AppFrame({
 
     const nextProfile = draftValidation.profile;
     setSavedProfiles((current) => upsertProfile(current, nextProfile));
-    setSelectedProfileId(nextProfile.id);
-    setAppliedProfile(nextProfile);
-    setProfileDraft(createServerProfileDraft(nextProfile));
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(nextProfile);
   }
 
   function handleSelectionModeChange(value: ServerSelectionMode) {
@@ -243,13 +245,7 @@ function AppFrame({
       return;
     }
 
-    setSelectedProfileId(profileId);
-    setAppliedProfile(nextProfile);
-    setProfileDraft(createServerProfileDraft(nextProfile));
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(nextProfile);
   }
 
   function handleCreateProfile() {
@@ -262,13 +258,7 @@ function AppFrame({
     };
 
     setSavedProfiles((current) => [...current, nextProfile]);
-    setSelectedProfileId(nextProfile.id);
-    setAppliedProfile(nextProfile);
-    setProfileDraft(createServerProfileDraft(nextProfile));
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(nextProfile);
   }
 
   function handleDeleteSelectedProfile() {
@@ -279,19 +269,13 @@ function AppFrame({
     const fallbackProfile =
       remainingProfiles[0] ?? {
         ...createDefaultServerProfile(),
-        name: "Demo WSS",
+        name: demoProfileName,
       };
     const nextProfiles =
       remainingProfiles.length > 0 ? remainingProfiles : [fallbackProfile];
 
     setSavedProfiles(nextProfiles);
-    setSelectedProfileId(fallbackProfile.id);
-    setAppliedProfile(fallbackProfile);
-    setProfileDraft(createServerProfileDraft(fallbackProfile));
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(fallbackProfile);
   }
 
   function handleClearLocalSave() {
@@ -299,44 +283,24 @@ function AppFrame({
 
     const nextProfile = {
       ...createDefaultServerProfile(),
-      name: "Demo WSS",
+      name: demoProfileName,
     };
 
     setMatchingSavedAuthProfileId(null);
     setSavedProfiles([nextProfile]);
-    setSelectedProfileId(nextProfile.id);
-    setAppliedProfile(nextProfile);
-    setProfileDraft(createServerProfileDraft(nextProfile));
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(nextProfile);
   }
 
   async function handleCopyShareUrl() {
     try {
-      if (!navigator.clipboard) {
-        throw msg("errors.clipboard.apiUnavailable");
-      }
-
-      await navigator.clipboard.writeText(shareUrl);
+      await copyTextToClipboard(shareUrl);
       setShareCopyStatus("success");
       setShareCopyStatusMessage(msg("shareSheet.copySuccess"));
     } catch (error) {
-      const message =
-        error &&
-        typeof error === "object" &&
-        isMessageDescriptor(error as LocalizedText)
-          ? tText(error as LocalizedText)
-          : error instanceof Error && error.message.trim()
-            ? error.message.trim()
-            : typeof error === "string" && error.trim()
-              ? error.trim()
-              : t("errors.clipboard.unknownFailure");
       setShareCopyStatus("error");
       setShareCopyStatusMessage(
         msg("shareSheet.copyFailed", {
-          message,
+          message: formatClipboardError(error, locale),
         }),
       );
     }
@@ -354,14 +318,8 @@ function AppFrame({
       return;
     }
 
-    setSelectedProfileId(matchingProfile.id);
-    setAppliedProfile(matchingProfile);
-    setProfileDraft(createServerProfileDraft(matchingProfile));
     setMatchingSavedAuthProfileId(null);
-    setSessionControl((current) => ({
-      revision: current.revision + 1,
-      shouldConnect: true,
-    }));
+    activateProfile(matchingProfile);
   }
 
   return (
@@ -376,7 +334,7 @@ function AppFrame({
         <ServerInfoStrip
           status={session.status}
           isServerDossierOpen={isServerDossierOpen}
-          activeServerSummary={activeServerSummary}
+          servers={serverDiagnostics}
           onOpenServerDossier={() => setIsServerDossierOpen(true)}
         />
 
@@ -436,12 +394,6 @@ function AppFrame({
                 serversText: value,
               }))
             }
-            onMonitorUrlTextChange={(value) =>
-              setProfileDraft((current) => ({
-                ...current,
-                monitorUrlText: value,
-              }))
-            }
             onTimeoutMsTextChange={(value) =>
               setProfileDraft((current) => ({
                 ...current,
@@ -487,7 +439,6 @@ function AppFrame({
               }))
             }
             onApplyAndConnect={handleApplyAndConnect}
-            monitoring={monitoring}
           />
 
           <SignalDrawer
