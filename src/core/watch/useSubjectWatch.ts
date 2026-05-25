@@ -146,16 +146,20 @@ export function useSubjectWatch(
           subject: subscriptionSubject,
         }));
         setRows((currentRows) => {
-          const existingRow = currentRows.find((row) => row.subject === subject);
-          const mergedRow = existingRow
-            ? {
-                ...nextRow,
-                count: existingRow.count + 1,
-              }
-            : nextRow;
-          const remainingRows = currentRows.filter((row) => row.subject !== subject);
+          const existingIndex = currentRows.findIndex((row) => row.subject === subject);
 
-          return [mergedRow, ...remainingRows];
+          if (existingIndex === -1) {
+            return [...currentRows, nextRow];
+          }
+
+          return currentRows.map((row, index) =>
+            index === existingIndex
+              ? {
+                  ...nextRow,
+                  count: row.count + 1,
+                }
+              : row,
+          );
         });
 
         if (clearFreshTimersRef.current[subject]) {
